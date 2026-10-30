@@ -1,0 +1,647 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Proyecto gem5 GEMM</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: hoja de datos de un procesador — índice fijo a la izquierda, columna de lectura, pasos como "etapas del pipeline" */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#14202b; --muted:#56646f; --line:#d5dce2;
+  --accent:#2350b8; --accent-soft:#e3eafa; --signal:#c98a00; --signal-soft:#fbf1d6;
+  --ok:#1f7a4d; --bad:#b3261e; --code-bg:#eaeef2;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f151b; --surface:#16202a; --ink:#e4eaf0; --muted:#9aa8b4; --line:#2a3743;
+  --accent:#86a8ff; --accent-soft:#1d2b4a; --signal:#f0b93a; --signal-soft:#3a2f12;
+  --ok:#5fcf95; --bad:#ff8a80; --code-bg:#1d2832; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#16202a; --ink:#e4eaf0; --muted:#9aa8b4; --line:#2a3743;
+  --accent:#86a8ff; --accent-soft:#1d2b4a; --signal:#f0b93a; --signal-soft:#3a2f12;
+  --ok:#5fcf95; --bad:#ff8a80; --code-bg:#1d2832; color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6}
+a{color:var(--accent);text-underline-offset:2px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+code,pre,.mono{font-family:var(--f-mono);font-size:.86em}
+code{background:var(--code-bg);padding:.1em .35em;border-radius:4px}
+pre{background:var(--code-bg);padding:12px 14px;border-radius:6px;overflow-x:auto;line-height:1.5;margin:0}
+pre code{background:none;padding:0}
+
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+
+header.hero{border-bottom:1px solid var(--line);padding-block:40px 32px;display:grid;gap:20px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{font-family:var(--f-display);font-stretch:85%;text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(30px,5vw,48px);font-weight:800;max-width:22ch}
+h2{font-size:clamp(24px,3vw,30px);font-weight:750;margin-bottom:12px}
+h3{font-size:19px;font-weight:700}
+.lead{font-size:18px;max-width:64ch;color:var(--ink);margin:0}
+.specs{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:14px;color:var(--muted);margin:0;padding:0;list-style:none}
+.specs b{color:var(--ink);font-weight:600}
+
+.layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:40px;padding-top:32px}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);align-self:start;font-size:14px}
+nav.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+nav.toc a{display:block;padding:4px 8px;border-left:2px solid var(--line);color:var(--muted);text-decoration:none}
+nav.toc a:hover{color:var(--ink);border-color:var(--accent)}
+nav.toc .grp{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px 10px}
+@media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}nav.toc{display:none}}
+
+main{min-width:0;display:grid;gap:56px}
+section{min-width:0;display:grid;gap:16px}
+section > p,.prose p{margin:0;max-width:68ch}
+.note{background:var(--signal-soft);border-left:3px solid var(--signal);padding:12px 16px;border-radius:0 6px 6px 0;max-width:72ch}
+.note p{margin:0}
+
+.question{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;display:grid;gap:12px}
+.question .q{font-family:var(--f-display);font-stretch:90%;font-size:20px;font-weight:650;line-height:1.3;max-width:52ch}
+.formula{font-family:var(--f-mono);font-size:15px;background:var(--code-bg);padding:10px 14px;border-radius:6px;overflow-x:auto;white-space:nowrap}
+
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.45}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.tag{font-family:var(--f-mono);font-weight:600;white-space:nowrap;color:var(--accent)}
+
+/* Calculadora */
+.calc{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 20px;display:grid;gap:14px}
+.calc-row{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end}
+.calc label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.calc select{font:inherit;font-size:15px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-width:110px}
+.calc-out{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.calc-out .num{font-family:var(--f-display);font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}
+.pill{font-family:var(--f-mono);font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid currentColor}
+.pill.ok{color:var(--ok)} .pill.bad{color:var(--bad)}
+
+/* Guía */
+.progress{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted)}
+.bar{flex:1;max-width:320px;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.phase{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--signal);padding-top:8px;border-top:1px dashed var(--line)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:20px;counter-reset:st}
+.step{counter-increment:st;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;display:grid;gap:14px;scroll-margin-top:16px}
+.step-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;align-items:start}
+.step-head::before{content:counter(st,decimal-leading-zero);grid-row:span 2;font-family:var(--f-display);font-weight:800;font-size:30px;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.step-meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px}
+.chip{font-family:var(--f-mono);font-size:11.5px;padding:1px 8px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+.chip.ac{background:var(--signal-soft);color:var(--signal)}
+.step p{margin:0;max-width:70ch}
+.cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px}
+@media (max-width:720px){.cols{grid-template-columns:minmax(0,1fr)}}
+.cols > div{min-width:0;display:grid;gap:10px;align-content:start}
+.sub{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14.5px}
+.checks label{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;cursor:pointer;align-items:start}
+.checks input{margin:4px 0 0;accent-color:var(--accent);width:16px;height:16px}
+.checks input:checked + span{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.refs{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14px}
+.refs li{padding-left:12px;border-left:2px solid var(--line)}
+.refs .k{display:block;font-size:12px;color:var(--muted)}
+.ac-box{font-size:14px;background:var(--signal-soft);padding:10px 14px;border-radius:6px}
+.ac-box b{color:var(--signal)}
+
+details{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details summary{cursor:pointer;padding:14px 18px;font-family:var(--f-display);font-weight:700;font-size:17px}
+details > .tbl{border:0;border-top:1px solid var(--line);border-radius:0 0 8px 8px}
+footer{border-top:1px solid var(--line);padding-top:20px;font-size:13px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">Arquitectura de Computadoras · Proyecto de grupo</div>
+    <h1>Arquitecturas paralelas para la multiplicación de matrices en gem5</h1>
+    <p class="lead">Cada grupo actúa como el equipo de arquitectura de un procesador para inferencia en el borde. Con gem5 evaluarán núcleos superescalares, extensiones vectoriales, multiprocesadores y protocolos de coherencia, y recomendarán un diseño con evidencia.</p>
+    <ul class="specs">
+      <li><b>Grupos:</b> 4 personas</li>
+      <li><b>Plazo:</b> 4 semanas (3 de trabajo + 1 de holgura)</li>
+      <li><b>Herramienta:</b> gem5, modo SE, ARMv8 + SVE</li>
+      <li><b>Entrega final:</b> video de conclusiones en YouTube</li>
+      <li><b>Atributo evaluado:</b> Aprendizaje continuo (AC1–AC4)</li>
+    </ul>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Índice">
+      <ol>
+        <li class="grp">Enunciado</li>
+        <li><a href="#problema">Problema</a></li>
+        <li><a href="#objetivos">Objetivos</a></li>
+        <li><a href="#cronograma">Cronograma</a></li>
+        <li><a href="#experimentos">Experimentos</a></li>
+        <li><a href="#entregables">Entregables</a></li>
+        <li><a href="#aprendizaje">Aprendizaje continuo</a></li>
+        <li><a href="#evaluacion">Evaluación</a></li>
+        <li class="grp">Guía del grupo</li>
+        <li><a href="#guia">Pasos 1–14</a></li>
+        <li><a href="#paso-arranque">Semana 1</a></li>
+        <li><a href="#paso-e2">Semana 2</a></li>
+        <li><a href="#paso-e4">Semana 3</a></li>
+        <li><a href="#paso-informe">Semana 4</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <!-- ============ ENUNCIADO ============ -->
+      <section id="problema">
+        <h2>1. Problema a resolver</h2>
+        <p><b>Acelerar la multiplicación de matrices densas C = A × B</b> en precisión simple, el núcleo tipo GEMM que concentra más del 80 % del cómputo de una capa totalmente conectada. Un microbenchmark de contadores compartidos complementa el estudio de la coherencia.</p>
+        <div class="question">
+          <div class="eyebrow">Pregunta que debe responder el grupo</div>
+          <div class="q">Con un presupuesto de 32 unidades de costo, ¿qué combinación de núcleos, ancho superescalar, longitud vectorial y protocolo de coherencia minimiza el tiempo de ejecución de GEMM?</div>
+          <div class="formula">Costo = N<sub>núcleos</sub> × ( W<sub>issue</sub> / 2 + VL / 128 )</div>
+          <p style="margin:0;font-size:14px;color:var(--muted)">W<sub>issue</sub>: ancho de emisión del núcleo O3 (1, 2, 4 u 8). VL: longitud vectorial SVE en bits (128 a 1024).</p>
+        </div>
+        <div class="calc" aria-labelledby="calc-t">
+          <div class="sub" id="calc-t">Calculadora de costo (para planear E6)</div>
+          <div class="calc-row">
+            <label for="c-n">Núcleos<select id="c-n"><option>1</option><option>2</option><option selected>4</option><option>8</option></select></label>
+            <label for="c-w">Ancho de emisión<select id="c-w"><option>1</option><option>2</option><option selected>4</option><option>8</option></select></label>
+            <label for="c-v">VL (bits)<select id="c-v"><option>128</option><option selected>256</option><option>512</option><option>1024</option></select></label>
+            <div class="calc-out" aria-live="polite"><span class="num" id="c-out">16</span><span>unidades</span><span class="pill ok" id="c-pill">Dentro del presupuesto</span></div>
+          </div>
+        </div>
+        <p style="font-size:14px;color:var(--muted)">Alcance: simulación en modo SE, núcleos TimingSimple, Minor (en orden) y O3 (fuera de orden), jerarquía de caché clásica y Ruby.</p>
+      </section>
+
+      <section id="objetivos">
+        <h2>2. Objetivos de aprendizaje técnicos</h2>
+        <ol class="prose" style="margin:0;padding-left:1.3em;display:grid;gap:6px;max-width:70ch">
+          <li>Configurar y ejecutar simulaciones en gem5 y extraer métricas de <code>stats.txt</code> solo para la región de interés.</li>
+          <li>Explicar cómo el ancho de emisión, el ROB y la cola de instrucciones limitan el ILP en un núcleo superescalar.</li>
+          <li>Cuantificar la ganancia de SVE frente al código escalar y su dependencia de la longitud vectorial.</li>
+          <li>Medir <i>speedup</i> y eficiencia en un multiprocesador de memoria compartida y relacionarlos con la ley de Amdahl.</li>
+          <li>Comparar protocolos de coherencia (MESI vs. MOESI) y diagnosticar el falso compartido.</li>
+          <li>Integrar los resultados para proponer y defender una arquitectura óptima bajo una restricción de costo.</li>
+        </ol>
+      </section>
+
+      <section id="cronograma">
+        <h2>3. Organización y cronograma</h2>
+        <p>Cada uno de los 4 integrantes lidera uno de los experimentos E2–E5; E1 y E6 se hacen entre todos. Todos deben poder explicar cualquier resultado, y cada integrante expone una parte en el video.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Semana</th><th>Actividades técnicas</th><th>Aprendizaje continuo</th><th>Entregable</th></tr></thead>
+          <tbody>
+            <tr><td class="tag">1</td><td>Entorno gem5 (ARM + SVE), benchmarks validados, E1</td><td>Diagnóstico (AC1) y vigilancia tecnológica (AC2)</td><td>Plan de aprendizaje individual + resultados de E1</td></tr>
+            <tr><td class="tag">2</td><td>E2 superescalar y E3 vectorial</td><td>Bitácora (AC3)</td><td>Avance de 10 min con gráficos de E1–E3</td></tr>
+            <tr><td class="tag">3</td><td>E4 multiprocesador, E5 coherencia, E6 exploración</td><td>Bitácora (AC3)</td><td>Datos crudos y scripts en el repositorio</td></tr>
+            <tr><td class="tag">4</td><td>Holgura, análisis final, informe, guion, grabación y edición del video</td><td>Reflexión crítica (AC4)</td><td>Informe, repositorio, bitácora, reflexión, enlace del video y coevaluación</td></tr>
+          </tbody>
+        </table></div>
+        <div class="note"><p><b>Recomendación:</b> preparar en la semana 1 un contenedor Docker con gem5 ya compilado para ARM (una versión con el protocolo MESI_Two_Level y otra con MOESI_CMP_directory). Compilar gem5 puede tomar más de una hora.</p></div>
+      </section>
+
+      <section id="experimentos">
+        <h2>4. Experimentos obligatorios</h2>
+        <p>Todos usan los mismos programas en C compilados de forma estática para AArch64, con la región de interés delimitada por <code>m5_reset_stats()</code> y <code>m5_dump_stats()</code>. Tamaños: N = 64 y N = 128.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Exp.</th><th>Tema</th><th>Variables a barrer</th><th>Métricas mínimas</th><th>Pregunta guía</th></tr></thead>
+          <tbody>
+            <tr><td class="tag">E1</td><td>Línea base</td><td>TimingSimple, Minor, O3 (1 núcleo, escalar)</td><td>Ciclos, IPC, CPI, fallos L1D/L2</td><td>¿Cuánto gana un núcleo fuera de orden?</td></tr>
+            <tr><td class="tag">E2</td><td>Superescalar</td><td>Ancho 1, 2, 4, 8; ROB 32, 64, 192</td><td>IPC, ocupación IQ/ROB, fallos de predicción</td><td>¿Dónde se satura el IPC y por qué?</td></tr>
+            <tr><td class="tag">E3</td><td>Vectorial</td><td>Escalar vs. SVE; VL 128–1024</td><td>Instrucciones, ciclos, <i>speedup</i></td><td>¿La ganancia escala con VL?</td></tr>
+            <tr><td class="tag">E4</td><td>Multiprocesador</td><td>1, 2, 4, 8 núcleos (O3 ancho 2)</td><td><i>Speedup</i>, eficiencia, fallos L2</td><td>¿Qué fracción serial estima Amdahl?</td></tr>
+            <tr><td class="tag">E5</td><td>Coherencia</td><td>MESI_Two_Level vs. MOESI_CMP_directory; con y sin relleno</td><td>Invalidaciones, mensajes, latencia de fallo</td><td>¿Cuánto cuesta el falso compartido?</td></tr>
+            <tr><td class="tag">E6</td><td>Integración</td><td>≥ 6 configuraciones con costo ≤ 32</td><td>Tiempo GEMM N = 128, costo, rendimiento/costo</td><td>¿Cuál es la mejor arquitectura?</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="entregables">
+        <h2>5. Entregables</h2>
+        <div class="tbl"><table>
+          <thead><tr><th>Entregable</th><th>Formato</th><th>Fecha</th></tr></thead>
+          <tbody>
+            <tr><td>Plan de aprendizaje y ficha de vigilancia tecnológica</td><td>PDF de 1–2 páginas por persona</td><td>Fin de semana 1</td></tr>
+            <tr><td>Avance</td><td>Reunión de 10 min con gráficos E1–E3</td><td>Fin de semana 2</td></tr>
+            <tr><td>Repositorio</td><td>Git con código, scripts, CSV y README de reproducción</td><td>Fin de semana 4</td></tr>
+            <tr><td>Informe técnico</td><td>Formato IEEE, máximo 8 páginas</td><td>Fin de semana 4</td></tr>
+            <tr><td>Bitácora de aprendizaje</td><td>Entradas semanales por persona</td><td>Fin de semana 4</td></tr>
+            <tr><td>Reflexión crítica individual</td><td>1 página por persona</td><td>Fin de semana 4</td></tr>
+            <tr><td>Video de conclusiones</td><td>YouTube en modo <b>no listado</b>, 12–15 min, con los 4 integrantes; enlace en el informe y en la plataforma del curso</td><td>Fin de semana 4</td></tr>
+            <tr><td>Coevaluación</td><td>Formulario individual sobre el aporte de cada integrante</td><td>Fin de semana 4</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="aprendizaje">
+        <h2>6. Aprendizaje continuo (individual)</h2>
+        <p>El proyecto exige herramientas que casi nadie domina al inicio. Cada estudiante documenta cómo detecta su brecha, cómo la cierra y si su estrategia funcionó.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Objetivo</th><th>Actividad</th><th>Evidencia</th><th>Momento</th></tr></thead>
+          <tbody>
+            <tr><td class="tag">AC1</td><td>Autoevaluación con matriz de 10–12 competencias (nivel 0–3, justificado) y priorización de 3 brechas</td><td>Plan de aprendizaje individual</td><td>Semana 1</td></tr>
+            <tr><td class="tag">AC2</td><td>Ficha de vigilancia con 2+ tecnologías emergentes y 1+ recurso de aprendizaje</td><td>Ficha con fuentes citadas</td><td>Semana 1</td></tr>
+            <tr><td class="tag">AC3</td><td>Bitácora semanal: acción, necesidad, tiempo, resultado, evidencia; 3+ tipos de estrategia</td><td>Bitácora semanas 1–4</td><td>Semanas 1–4</td></tr>
+            <tr><td class="tag">AC4</td><td>Comparar diagnóstico inicial y final, juzgar la eficacia de cada estrategia y proponer mejoras</td><td>Reflexión de 1 página + 2 min en el video</td><td>Semana 4</td></tr>
+          </tbody>
+        </table></div>
+        <div class="note"><p><b>IA generativa:</b> se permite y puede formar parte de AC2 y AC3, pero todo resultado obtenido con su ayuda se verifica con una simulación propia y se declara en la bitácora.</p></div>
+      </section>
+
+      <section id="evaluacion">
+        <h2>7. Evaluación</h2>
+        <p>70 % técnico (grupal, con ajuste individual según la participación en el video y la coevaluación) y 30 % aprendizaje continuo (individual).</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Bloque del video</th><th>Duración</th><th>Quién</th></tr></thead>
+          <tbody>
+            <tr><td>Problema, metodología y modelo de costo</td><td class="mono">2 min</td><td>Integrante 1</td></tr>
+            <tr><td>Resultados E1–E5 (cada líder presenta su experimento)</td><td class="mono">6–7 min</td><td>Los 4</td></tr>
+            <tr><td>Propuesta E6 y su justificación</td><td class="mono">3 min</td><td>Integrante 2</td></tr>
+            <tr><td>Aprendizaje continuo: qué necesitábamos, qué hicimos, qué funcionó</td><td class="mono">2 min</td><td>Integrante 3</td></tr>
+            <tr><td>Conclusiones y recomendación final</td><td class="mono">1–2 min</td><td>Integrante 4</td></tr>
+          </tbody>
+        </table></div>
+        <p style="font-size:14px;color:var(--muted)">Requisitos: los 4 integrantes aparecen y hablan, gráficos legibles en pantalla, audio claro, duración entre 12 y 15 min. El profesor y los compañeros pueden dejar preguntas en los comentarios del video o en la plataforma del curso, y el grupo las responde por escrito en un plazo de 3 días.</p>
+        <details>
+          <summary>Rúbrica técnica (70 %)</summary>
+          <div class="tbl"><table>
+            <thead><tr><th>Criterio</th><th>Peso</th><th>Excelente</th><th>Insuficiente</th></tr></thead>
+            <tbody>
+              <tr><td>Simulaciones E1–E5</td><td class="mono">20 %</td><td>Barridos completos, ROI bien delimitada, resultados validados</td><td>Experimentos faltantes o métricas con inicialización</td></tr>
+              <tr><td>Análisis y contraste</td><td class="mono">20 %</td><td>Explica cada tendencia con conceptos de arquitectura</td><td>Describe números sin causas</td></tr>
+              <tr><td>Propuesta E6</td><td class="mono">15 %</td><td>Justificada con datos, respeta el costo, discute sensibilidad</td><td>Sin evidencia o viola el presupuesto</td></tr>
+              <tr><td>Reproducibilidad</td><td class="mono">5 %</td><td>Un comando por experimento regenera CSV y gráficos</td><td>No reproducible</td></tr>
+              <tr><td>Video de conclusiones</td><td class="mono">10 %</td><td>Claro, 12–15 min, los 4 exponen con dominio, gráficos legibles, buen audio; responde las preguntas escritas</td><td>Fuera de tiempo, integrantes ausentes, gráficos ilegibles o sin conclusiones</td></tr>
+            </tbody>
+          </table></div>
+        </details>
+        <details>
+          <summary>Rúbrica de aprendizaje continuo (30 %, 7,5 % cada objetivo)</summary>
+          <div class="tbl"><table>
+            <thead><tr><th>Obj.</th><th>Excelente (4)</th><th>Satisfactorio (3)</th><th>En desarrollo (2)</th><th>Insuficiente (1)</th></tr></thead>
+            <tbody>
+              <tr><td class="tag">AC1</td><td>Brechas específicas, priorizadas, con evidencia y ligadas al cambio tecnológico</td><td>Brechas pertinentes, justificación parcial</td><td>Brechas genéricas sin priorizar</td><td>No identifica</td></tr>
+              <tr><td class="tag">AC2</td><td>2+ tecnologías emergentes con fuentes confiables y aporte preciso a su aprendizaje</td><td>Tecnologías pertinentes, relación general</td><td>Las menciona sin relacionarlas</td><td>No identifica</td></tr>
+              <tr><td class="tag">AC3</td><td>3+ estrategias variadas, sostenidas 4 semanas, con evidencia verificable</td><td>Estrategias con evidencia la mayoría de semanas</td><td>Aisladas o sin evidencia</td><td>No implementa</td></tr>
+              <tr><td class="tag">AC4</td><td>Contrasta inicio y fin con evidencia, juzga cada estrategia, propone mejoras transferibles</td><td>Evalúa con alguna evidencia</td><td>Descriptiva, sin juicio crítico</td><td>No evalúa</td></tr>
+            </tbody>
+          </table></div>
+        </details>
+      </section>
+
+      <!-- ============ GUÍA ============ -->
+      <section id="guia">
+        <h2>8. Guía paso a paso para el grupo</h2>
+        <p>Sigan los pasos en orden; cada uno indica la semana, qué entregar, una lista de verificación y referencias para resolverlo. Las casillas se guardan en este navegador para que lleven su avance.</p>
+        <div class="progress"><span id="prog-txt">0 de 0 tareas</span><div class="bar"><span id="prog-bar"></span></div></div>
+
+        <ol class="steps">
+          <li class="phase" id="paso-arranque" aria-hidden="true">Semana 1 · Arranque y línea base</li>
+
+          <li class="step" id="paso-1">
+            <div class="step-head"><h3>Organizar el grupo y el repositorio</h3>
+              <div class="step-meta"><span class="chip">Semana 1 · días 1–2</span><span class="chip ac">AC3</span></div></div>
+            <p>Definan quién lidera cada experimento, creen el repositorio con su estructura de carpetas y un tablero de tareas con las 4 semanas.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="1a"><span>Roles: un líder para cada uno de E2, E3, E4 y E5 (todos participan en E1 y E6)</span></label></li>
+                <li><label><input type="checkbox" data-k="1d"><span>Responsable de integración: repositorio, scripts comunes y calendario (rol rotativo por semana)</span></label></li>
+                <li><label><input type="checkbox" data-k="1b"><span>Repositorio con <code>src/</code>, <code>configs/</code>, <code>scripts/</code>, <code>results/</code>, <code>report/</code></span></label></li>
+                <li><label><input type="checkbox" data-k="1c"><span>Tablero con tareas y fechas, revisado 2 veces por semana</span></label></li>
+              </ul>
+              <pre><code>proyecto-gem5/
+├─ src/        # gemm_scalar.c, gemm_sve.c, gemm_omp.c, false_sharing.c
+├─ configs/    # scripts de configuración de gem5
+├─ scripts/    # run_e1.sh … run_e6.sh, parse_stats.py
+├─ results/    # m5out por corrida + CSV
+└─ report/</code></pre></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://git-scm.com/book/es/v2" target="_blank" rel="noopener">Pro Git (en español)</a><span class="k">Ramas, commits y trabajo en equipo</span></li>
+                <li><a href="https://docs.github.com/es/issues/planning-and-tracking-with-projects" target="_blank" rel="noopener">GitHub Projects</a><span class="k">Tablero de tareas ligado al repositorio</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-2">
+            <div class="step-head"><h3>Diagnosticar necesidades y vigilar tecnologías</h3>
+              <div class="step-meta"><span class="chip">Semana 1</span><span class="chip ac">AC1</span><span class="chip ac">AC2</span></div></div>
+            <p>Cada persona completa la matriz de competencias, prioriza 3 brechas con metas medibles y busca al menos 2 tecnologías emergentes relacionadas con el proyecto.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="2a"><span>Matriz 0–3 con un ejemplo que justifique cada nivel</span></label></li>
+                <li><label><input type="checkbox" data-k="2b"><span>3 brechas prioritarias con meta y fecha (p. ej., "escribir un bucle SVE con ACLE antes del día 9")</span></label></li>
+                <li><label><input type="checkbox" data-k="2c"><span>Ficha AC2: qué es la tecnología, por qué importa, cómo contribuye a mi aprendizaje, fuentes</span></label></li>
+                <li><label><input type="checkbox" data-k="2d"><span>Bitácora creada con la primera entrada</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.gem5.org/blog/" target="_blank" rel="noopener">Blog y notas de versión de gem5</a><span class="k">Qué cambia en el simulador</span></li>
+                <li><a href="https://github.com/riscv/riscv-v-spec" target="_blank" rel="noopener">Especificación RISC-V Vector (RVV)</a><span class="k">Extensión vectorial abierta alternativa a SVE</span></li>
+                <li><a href="https://developer.arm.com/Architectures/Scalable%20Vector%20Extensions" target="_blank" rel="noopener">Arm SVE / SVE2 / SME</a><span class="k">Evolución de las extensiones de Arm</span></li>
+                <li><a href="https://arxiv.org/list/cs.AR/recent" target="_blank" rel="noopener">arXiv cs.AR</a><span class="k">Artículos recientes de arquitectura</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-3">
+            <div class="step-head"><h3>Preparar el entorno de gem5</h3>
+              <div class="step-meta"><span class="chip">Semana 1</span></div></div>
+            <p>Usen el contenedor del curso o compilen gem5 para ARM. Instalen el compilador cruzado AArch64 y ejecuten un "hola mundo" en modo SE antes de seguir.</p>
+            <div class="cols">
+              <div><div class="sub">Comandos de referencia</div>
+              <pre><code># Compilar gem5 (una vez por protocolo Ruby)
+scons build/ARM_MESI/gem5.opt -j$(nproc) \
+  --default=ARM PROTOCOL=MESI_Two_Level
+
+# Compilador cruzado
+aarch64-linux-gnu-gcc -O2 -static hola.c -o hola
+
+# Prueba
+build/ARM_MESI/gem5.opt \
+  configs/deprecated/example/se.py -c ./hola</code></pre>
+              <ul class="checks">
+                <li><label><input type="checkbox" data-k="3a"><span>gem5 ejecuta "hola" y genera <code>m5out/stats.txt</code></span></label></li>
+                <li><label><input type="checkbox" data-k="3b"><span>Anotado el commit/versión de gem5 en el README</span></label></li>
+                <li><label><input type="checkbox" data-k="3c"><span>Verificados los nombres de CPU con <code>--list-cpu-types</code></span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.gem5.org/documentation/general_docs/building" target="_blank" rel="noopener">Compilar gem5</a><span class="k">Dependencias, scons y Docker</span></li>
+                <li><a href="https://www.gem5.org/documentation/learning_gem5/introduction/" target="_blank" rel="noopener">Learning gem5</a><span class="k">Tutorial oficial, parte I</span></li>
+                <li><a href="https://bootcamp.gem5.org/" target="_blank" rel="noopener">gem5 bootcamp</a><span class="k">Videos y ejercicios guiados</span></li>
+                <li><a href="https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads" target="_blank" rel="noopener">Arm GNU Toolchain</a><span class="k">Compilador cruzado AArch64</span></li>
+              </ul>
+              <p style="font-size:13px;color:var(--muted)">La ruta de <code>se.py</code> y los nombres de CPU cambian entre versiones; confirmen en la suya.</p></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-4">
+            <div class="step-head"><h3>Escribir y validar los benchmarks</h3>
+              <div class="step-meta"><span class="chip">Semana 1</span></div></div>
+            <p>Escriban los cuatro programas, verifiquen el resultado de GEMM contra una versión de referencia y marquen la región de interés.</p>
+            <div class="cols">
+              <div><div class="sub">Esqueleto de la región de interés</div>
+              <pre><code>#include &lt;gem5/m5ops.h&gt;
+init(A, B, N);
+m5_reset_stats(0, 0);    // inicio ROI
+gemm(A, B, C, N);
+m5_dump_stats(0, 0);     // fin ROI
+check(C, N);             // fuera de la ROI</code></pre>
+              <ul class="checks">
+                <li><label><input type="checkbox" data-k="4a"><span>Resultados correctos con N = 16 en nativo y en gem5</span></label></li>
+                <li><label><input type="checkbox" data-k="4b"><span>Enlazado con <code>libm5.a</code> para AArch64</span></label></li>
+                <li><label><input type="checkbox" data-k="4c"><span><code>false_sharing.c</code> con y sin relleno a 64 bytes</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.gem5.org/documentation/general_docs/m5ops/" target="_blank" rel="noopener">m5ops</a><span class="k">Instrucciones mágicas y compilación de libm5</span></li>
+                <li><a href="https://doi.org/10.1145/1356052.1356053" target="_blank" rel="noopener">Goto y van de Geijn (2008), Anatomy of High-Performance Matrix Multiplication</a><span class="k">Por qué importa el orden de los bucles y el bloqueo</span></li>
+                <li><a href="https://people.freebsd.org/~lstewart/articles/cpumemory.pdf" target="_blank" rel="noopener">Drepper, What Every Programmer Should Know About Memory</a><span class="k">Cachés, líneas y falso compartido</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-5">
+            <div class="step-head"><h3>Automatizar corridas y extracción de métricas</h3>
+              <div class="step-meta"><span class="chip">Semana 1</span><span class="chip ac">AC3</span></div></div>
+            <p>Antes de barrer parámetros, escriban un script que lance una corrida por configuración en su propia carpeta y otro que convierta <code>stats.txt</code> en una fila de CSV.</p>
+            <div class="cols">
+              <div><div class="sub">Patrón sugerido</div>
+              <pre><code>for w in 1 2 4 8; do
+  out=results/e2/w$w
+  build/ARM_MESI/gem5.opt -d $out \
+    configs/deprecated/example/se.py \
+    --cpu-type=O3CPU --caches --l2cache \
+    --param "system.cpu[0].issueWidth=$w" \
+    -c src/gemm_scalar -o 128 &amp;
+done; wait
+python3 scripts/parse_stats.py results/e2 &gt; e2.csv</code></pre>
+              <ul class="checks">
+                <li><label><input type="checkbox" data-k="5a"><span>Un script por experimento, ejecutable con un solo comando</span></label></li>
+                <li><label><input type="checkbox" data-k="5b"><span>El parser toma solo el bloque de estadísticas de la ROI</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.gem5.org/documentation/learning_gem5/part1/gem5_stats/" target="_blank" rel="noopener">Entender las estadísticas de gem5</a><span class="k">Qué significa cada métrica de stats.txt</span></li>
+                <li><a href="https://pandas.pydata.org/docs/user_guide/index.html" target="_blank" rel="noopener">Guía de pandas</a><span class="k">Unir y resumir CSV</span></li>
+                <li><a href="https://matplotlib.org/stable/tutorials/index.html" target="_blank" rel="noopener">Tutoriales de Matplotlib</a><span class="k">Gráficos para el informe</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-6">
+            <div class="step-head"><h3>E1: línea base de un núcleo</h3>
+              <div class="step-meta"><span class="chip">Semana 1</span></div></div>
+            <p>Corran GEMM escalar con TimingSimple, Minor y O3 para N = 64 y 128. Comparen ciclos, IPC y tasas de fallo, y expliquen la diferencia entre ejecución en orden y fuera de orden.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="6a"><span>6 corridas (3 CPU × 2 tamaños) en CSV</span></label></li>
+                <li><label><input type="checkbox" data-k="6b"><span>Gráfico de IPC por CPU y explicación en 3–5 oraciones</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.gem5.org/documentation/general_docs/cpu_models/O3CPU" target="_blank" rel="noopener">Modelo O3CPU</a><span class="k">Etapas y parámetros del núcleo fuera de orden</span></li>
+                <li><a href="https://www.gem5.org/documentation/general_docs/cpu_models/minor_cpu" target="_blank" rel="noopener">Modelo MinorCPU</a><span class="k">Pipeline en orden de 4 etapas</span></li>
+                <li>Hennessy y Patterson, <i>Computer Architecture: A Quantitative Approach</i>, cap. 3<span class="k">ILP y planificación dinámica</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="phase" id="paso-e2" aria-hidden="true">Semana 2 · Paralelismo dentro del núcleo</li>
+
+          <li class="step" id="paso-7">
+            <div class="step-head"><h3>E2: arquitectura superescalar</h3>
+              <div class="step-meta"><span class="chip">Semana 2</span></div></div>
+            <p>Barran el ancho (1, 2, 4, 8) y el tamaño del ROB (32, 64, 192). Ajusten de forma coherente <code>fetchWidth</code>, <code>decodeWidth</code>, <code>renameWidth</code>, <code>issueWidth</code>, <code>commitWidth</code> y <code>numROBEntries</code>.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="7a"><span>12 configuraciones en CSV</span></label></li>
+                <li><label><input type="checkbox" data-k="7b"><span>Identificado el recurso que satura el IPC (ROB lleno, IQ lleno, dependencias, memoria)</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://doi.org/10.1109/5.476078" target="_blank" rel="noopener">Smith y Sohi (1995), The Microarchitecture of Superscalar Processors</a><span class="k">Lectura clásica sobre límites del ILP</span></li>
+                <li><a href="https://www.gem5.org/documentation/general_docs/cpu_models/O3CPU" target="_blank" rel="noopener">Parámetros de O3CPU</a><span class="k">Nombres exactos de anchos y colas</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-8">
+            <div class="step-head"><h3>E3: extensiones vectoriales SVE</h3>
+              <div class="step-meta"><span class="chip">Semana 2</span></div></div>
+            <p>Compilen la versión SVE, confirmen que el compilador vectorizó el bucle y barran VL = 128 a 1024. Comparen instrucciones ejecutadas y ciclos contra la versión escalar.</p>
+            <div class="cols">
+              <div><div class="sub">Comandos de referencia</div>
+              <pre><code>aarch64-linux-gnu-gcc -O3 -march=armv8-a+sve \
+  -fopt-info-vec -static gemm_sve.c -o gemm_sve
+
+# VL en múltiplos de 128 bits (2 = 256 bits)
+--param "system.cpu[:].isa[:].sve_vl_se=2"</code></pre>
+              <ul class="checks">
+                <li><label><input type="checkbox" data-k="8a"><span>Confirmada la vectorización (<code>-fopt-info-vec</code> o desensamblado)</span></label></li>
+                <li><label><input type="checkbox" data-k="8b"><span>Verificado el nombre del parámetro de VL en su versión</span></label></li>
+                <li><label><input type="checkbox" data-k="8c"><span>Gráfico de <i>speedup</i> vs. VL con explicación del límite</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://doi.org/10.1109/MM.2017.35" target="_blank" rel="noopener">Stephens et al. (2017), The ARM Scalable Vector Extension</a><span class="k">Diseño agnóstico a la longitud vectorial</span></li>
+                <li><a href="https://github.com/ARM-software/acle" target="_blank" rel="noopener">Arm C Language Extensions (ACLE)</a><span class="k">Intrínsecos SVE para C</span></li>
+                <li><a href="https://gcc.gnu.org/projects/tree-ssa/vectorization.html" target="_blank" rel="noopener">Autovectorización en GCC</a><span class="k">Por qué un bucle se vectoriza o no</span></li>
+                <li>Hennessy y Patterson, cap. 4<span class="k">Arquitecturas vectoriales y SIMD</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-9">
+            <div class="step-head"><h3>Avance con el profesor</h3>
+              <div class="step-meta"><span class="chip">Fin de semana 2</span><span class="chip ac">AC3</span><span class="chip ac">AC4</span></div></div>
+            <p>Presenten en 10 minutos los gráficos de E1–E3 y lo que no han logrado. Usen la retroalimentación para ajustar el plan y registren en la bitácora qué estrategias funcionan y cuáles no.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="9a"><span>Gráficos E1–E3 con ejes y unidades</span></label></li>
+                <li><label><input type="checkbox" data-k="9b"><span>Lista de bloqueos y plan para la semana 3</span></label></li>
+              </ul></div>
+              <div class="ac-box"><b>Aprendizaje continuo:</b> comparen su avance con las metas del paso 2. Si una estrategia no funcionó (p. ej., ver videos sin practicar), cámbienla y anótenlo; ese cambio es evidencia para AC4.</div>
+            </div>
+          </li>
+
+          <li class="phase" id="paso-e4" aria-hidden="true">Semana 3 · Paralelismo entre núcleos e integración</li>
+
+          <li class="step" id="paso-10">
+            <div class="step-head"><h3>E4: multiprocesador</h3>
+              <div class="step-meta"><span class="chip">Semana 3</span></div></div>
+            <p>Paralelicen GEMM por filas y midan con 1, 2, 4 y 8 núcleos O3 de ancho 2. Calculen <i>speedup</i> y eficiencia y estimen la fracción serial con la ley de Amdahl.</p>
+            <div class="cols">
+              <div><div class="sub">Comandos de referencia</div>
+              <pre><code>build/ARM_MESI/gem5.opt -d results/e4/n4 \
+  configs/deprecated/example/se.py -n 4 \
+  --cpu-type=O3CPU --caches --l2cache \
+  -c src/gemm_omp -o "128 4"</code></pre>
+              <ul class="checks">
+                <li><label><input type="checkbox" data-k="10a"><span>Número de hilos igual al de núcleos simulados</span></label></li>
+                <li><label><input type="checkbox" data-k="10b"><span>Curva de <i>speedup</i> contra la ideal y fracción serial estimada</span></label></li>
+              </ul>
+              <p style="font-size:13px;color:var(--muted)">Si OpenMP falla en modo SE, usen pthreads con enlace estático.</p></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.openmp.org/resources/tutorials-articles/" target="_blank" rel="noopener">Tutoriales de OpenMP</a><span class="k">Paralelizar bucles con pragmas</span></li>
+                <li><a href="https://doi.org/10.1109/MC.2008.209" target="_blank" rel="noopener">Hill y Marty (2008), Amdahl's Law in the Multicore Era</a><span class="k">Núcleos simples vs. complejos bajo un presupuesto, clave para E6</span></li>
+                <li>Hennessy y Patterson, cap. 5<span class="k">Multiprocesadores de memoria compartida</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-11">
+            <div class="step-head"><h3>E5: coherencia de memoria</h3>
+              <div class="step-meta"><span class="chip">Semana 3</span></div></div>
+            <p>Con Ruby, corran <code>false_sharing.c</code> con y sin relleno y GEMM paralelo en MESI_Two_Level y MOESI_CMP_directory, con 2 a 8 núcleos. Midan invalidaciones, mensajes y latencia de fallos.</p>
+            <div class="cols">
+              <div><div class="sub">Comandos de referencia</div>
+              <pre><code>build/ARM_MOESI/gem5.opt -d results/e5/moesi_n4 \
+  configs/deprecated/example/se.py -n 4 --ruby \
+  --cpu-type=TimingSimpleCPU \
+  -c src/false_sharing -o "4 nopad"</code></pre>
+              <ul class="checks">
+                <li><label><input type="checkbox" data-k="11a"><span>Matriz protocolo × relleno × núcleos completa</span></label></li>
+                <li><label><input type="checkbox" data-k="11b"><span>Explicado qué estado del protocolo genera el tráfico extra</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.gem5.org/documentation/general_docs/ruby/" target="_blank" rel="noopener">Ruby en gem5</a><span class="k">Protocolos disponibles y su configuración</span></li>
+                <li><a href="https://www.gem5.org/documentation/learning_gem5/part3/MSIintro/" target="_blank" rel="noopener">Learning gem5, parte III</a><span class="k">Cómo se describe un protocolo en SLICC</span></li>
+                <li><a href="https://doi.org/10.1007/978-3-031-01764-3" target="_blank" rel="noopener">Nagarajan, Sorin, Hill y Wood (2020), A Primer on Memory Consistency and Cache Coherence</a><span class="k">Referencia completa de MESI, MOESI y directorios</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-12">
+            <div class="step-head"><h3>E6: exploración bajo presupuesto y propuesta</h3>
+              <div class="step-meta"><span class="chip">Semana 3</span></div></div>
+            <p>Usen lo aprendido en E2–E5 para escoger al menos 6 configuraciones con costo ≤ 32 (la calculadora de la sección 1 ayuda). Midan GEMM con N = 128 y elijan la mejor por tiempo y por rendimiento/costo.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="12a"><span>Cada configuración justificada por un resultado previo</span></label></li>
+                <li><label><input type="checkbox" data-k="12b"><span>Tabla final: configuración, costo, tiempo, rendimiento/costo</span></label></li>
+                <li><label><input type="checkbox" data-k="12c"><span>Análisis de sensibilidad: ¿qué cambia con N = 1024 o presupuesto de 16?</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li>Jain (1991), <i>The Art of Computer Systems Performance Analysis</i><span class="k">Diseño de experimentos y comparación de sistemas</span></li>
+                <li>Hennessy y Patterson, cap. 1<span class="k">Principios cuantitativos y costo-rendimiento</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="phase" id="paso-informe" aria-hidden="true">Semana 4 · Cierre</li>
+
+          <li class="step" id="paso-13">
+            <div class="step-head"><h3>Informe, repositorio y video</h3>
+              <div class="step-meta"><span class="chip">Semana 4</span></div></div>
+            <p>Usen la holgura para repetir corridas fallidas, escribir el informe IEEE y producir el video: guion, grabación, edición y publicación en YouTube como no listado.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="13a"><span>README que regenera todos los CSV y gráficos</span></label></li>
+                <li><label><input type="checkbox" data-k="13b"><span>Informe ≤ 8 páginas con propuesta y alternativas</span></label></li>
+                <li><label><input type="checkbox" data-k="13c"><span>Guion con tiempos por bloque y responsable de cada parte</span></label></li>
+                <li><label><input type="checkbox" data-k="13d"><span>Grabación con los 4 integrantes y gráficos legibles en pantalla</span></label></li>
+                <li><label><input type="checkbox" data-k="13e"><span>Video de 12–15 min subido como no listado, con subtítulos revisados</span></label></li>
+                <li><label><input type="checkbox" data-k="13f"><span>Enlace probado desde otra cuenta y entregado en la plataforma</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li><a href="https://www.ieee.org/conferences/publishing/templates.html" target="_blank" rel="noopener">Plantillas IEEE</a><span class="k">LaTeX y Word</span></li>
+                <li><a href="https://doi.org/10.1371/journal.pcbi.1003833" target="_blank" rel="noopener">Rougier et al. (2014), Ten Simple Rules for Better Figures</a><span class="k">Gráficos claros para el informe y el video</span></li>
+                <li><a href="https://obsproject.com/" target="_blank" rel="noopener">OBS Studio</a><span class="k">Grabar pantalla y cámara, gratuito</span></li>
+                <li><a href="https://shotcut.org/" target="_blank" rel="noopener">Shotcut</a><span class="k">Editor de video libre</span></li>
+                <li><a href="https://support.google.com/youtube/answer/57407?hl=es" target="_blank" rel="noopener">Subir videos a YouTube</a><span class="k">Ayuda oficial de YouTube</span></li>
+                <li><a href="https://support.google.com/youtube/answer/157177?hl=es" target="_blank" rel="noopener">Configuración de privacidad</a><span class="k">Diferencia entre público, no listado y privado</span></li>
+              </ul></div>
+            </div>
+          </li>
+
+          <li class="step" id="paso-14">
+            <div class="step-head"><h3>Reflexión crítica individual</h3>
+              <div class="step-meta"><span class="chip">Semana 4</span><span class="chip ac">AC4</span></div></div>
+            <p>Repitan la matriz de competencias del paso 2, compárenla con la inicial y evalúen cada estrategia con evidencia de la bitácora. Cierren con qué harían distinto ante la próxima tecnología nueva.</p>
+            <div class="cols">
+              <div><div class="sub">Lista de verificación</div><ul class="checks">
+                <li><label><input type="checkbox" data-k="14a"><span>Matriz final y diferencia con la inicial</span></label></li>
+                <li><label><input type="checkbox" data-k="14b"><span>Cada estrategia juzgada como eficaz o no, con evidencia</span></label></li>
+                <li><label><input type="checkbox" data-k="14c"><span>Aporte individual a los 2 minutos de aprendizaje continuo del video</span></label></li>
+              </ul></div>
+              <div><div class="sub">Referencias</div><ul class="refs">
+                <li>Gibbs (1988), ciclo reflexivo<span class="k">Descripción, sentimientos, evaluación, análisis, conclusión, plan</span></li>
+                <li>Su propia bitácora<span class="k">La principal evidencia para AC4</span></li>
+              </ul></div>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <footer>Referencias consultadas al 22 de octubre de 2026. Las rutas y parámetros de gem5 cambian entre versiones; verifiquen con la documentación de la versión que usen.</footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  var n=document.getElementById('c-n'),w=document.getElementById('c-w'),v=document.getElementById('c-v'),
+      out=document.getElementById('c-out'),pill=document.getElementById('c-pill');
+  function calc(){
+    var c=(+n.value)*((+w.value)/2+(+v.value)/128);
+    out.textContent=Number.isInteger(c)?c:c.toFixed(1);
+    var ok=c<=32;
+    pill.textContent=ok?'Dentro del presupuesto':'Excede el presupuesto';
+    pill.className='pill '+(ok?'ok':'bad');
+  }
+  [n,w,v].forEach(function(e){e.addEventListener('change',calc)});calc();
+
+  var KEY='gem5-proyecto-checks',state={};
+  try{state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){state={}}
+  var boxes=[].slice.call(document.querySelectorAll('.checks input[data-k]'));
+  var txt=document.getElementById('prog-txt'),bar=document.getElementById('prog-bar');
+  function upd(){
+    var done=boxes.filter(function(b){return b.checked}).length;
+    txt.textContent=done+' de '+boxes.length+' tareas';
+    bar.style.width=(boxes.length?done/boxes.length*100:0)+'%';
+  }
+  boxes.forEach(function(b){
+    b.checked=!!state[b.dataset.k];
+    b.addEventListener('change',function(){
+      state[b.dataset.k]=b.checked;
+      try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}
+      upd();
+    });
+  });
+  upd();
+})();
+</script>
+
+</body></html>
