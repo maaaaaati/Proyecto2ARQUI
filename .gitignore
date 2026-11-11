@@ -1,0 +1,12 @@
+# Binarios compilados
+src/hola
+src/gemm_scalar
+src/gemm_sve
+src/gemm_omp
+src/false_sharing
+*.o
+# Salidas de gem5 (solo se suben los CSV)
+m5out/
+results/**/m5out/
+results/**/*.ini
+results/**/*.json
