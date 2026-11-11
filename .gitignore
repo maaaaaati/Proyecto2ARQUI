@@ -10,3 +10,4 @@ m5out/
 results/**/m5out/
 results/**/*.ini
 results/**/*.json
+bin/
