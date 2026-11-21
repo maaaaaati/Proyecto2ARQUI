@@ -13,7 +13,7 @@ M5INC   := -I$(GEM5)/include
 M5LIB   := $(GEM5)/util/m5/build/arm64/out/libm5.a
 
 BIN     := bin
-PROGS   := gemm_scalar gemm_sve
+PROGS   := gemm_scalar gemm_sve gemm_omp
 
 # bin/gem5/*: con m5_reset_stats/m5_dump_stats -> SOLO para gem5
 # bin/qemu/*: sin instrucciones m5 -> para validar en QEMU
@@ -36,6 +36,9 @@ $(BIN)/gem5/gemm_scalar: src/gemm_scalar.c $(M5LIB) | $(BIN)/gem5
 $(BIN)/gem5/gemm_sve: src/gemm_sve.c $(M5LIB) | $(BIN)/gem5
 	$(CC) $(CFLAGS) $(SVEFLAG) -DUSE_M5 $(M5INC) $< -o $@ $(M5LIB) -lm
 
+$(BIN)/gem5/gemm_omp: src/gemm_omp.c $(M5LIB) | $(BIN)/gem5
+	$(CC) $(CFLAGS) -pthread -DUSE_M5 $(M5INC) $< -o $@ $(M5LIB) -lm
+
 # --- versiones para QEMU (sin ROI) ---
 $(BIN)/qemu/gemm_scalar: src/gemm_scalar.c | $(BIN)/qemu
 	$(CC) $(CFLAGS) -fopt-info-vec $< -o $@ -lm
@@ -43,10 +46,16 @@ $(BIN)/qemu/gemm_scalar: src/gemm_scalar.c | $(BIN)/qemu
 $(BIN)/qemu/gemm_sve: src/gemm_sve.c | $(BIN)/qemu
 	$(CC) $(CFLAGS) $(SVEFLAG) $< -o $@ -lm
 
+$(BIN)/qemu/gemm_omp: src/gemm_omp.c | $(BIN)/qemu
+	$(CC) $(CFLAGS) -pthread $< -o $@ -lm
+
 test: $(QEMU_BINS)
 	@for n in 16 64 128; do qemu-aarch64 $(BIN)/qemu/gemm_scalar $$n || exit 1; done
 	@for vl in 16 32 64 128; do for n in 16 64 128; do \
 	  qemu-aarch64 -cpu max,sve-default-vector-length=$$vl $(BIN)/qemu/gemm_sve $$n || exit 1; \
+	done; done
+	@for t in 1 2 3 4 8; do for n in 16 64 128; do \
+	  qemu-aarch64 $(BIN)/qemu/gemm_omp $$n $$t || exit 1; \
 	done; done
 	@echo "Todas las pruebas pasaron."
 

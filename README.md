@@ -46,6 +46,7 @@ Las corridas que ya tienen `stats.txt` se saltan (`FORCE=1` para repetirlas).
 | Experimento | Comando | Salida |
 |---|---|---|
 | E1 | `bash scripts/run_e1.sh` | `results/e1/e1.csv`, `results/e1/e1_ipc.png` |
+| E4 | `bash scripts/run_e4.sh` | `results/e4/e4.csv` (con speedup, eficiencia, fracción serial), `e4_speedup.png`, `e4_efficiency.png`, `e4_l2_misses.png` |
 
 Variables opcionales para cualquier `run_eX.sh`: `JOBS=4` (simulaciones en paralelo),
 `VARIANT=ARM_MESI` o `ARM_MOESI`, `GEM5=~/gem5`, `FORCE=1`.
@@ -57,6 +58,10 @@ Variables opcionales para cualquier `run_eX.sh`: `JOBS=4` (simulaciones en paral
 | `scripts/common.sh` | Funciones compartidas: `run_sim` lanza una corrida en su carpeta con `run.meta` (metadatos) y `cmd.txt`; controla el paralelismo |
 | `scripts/parse_stats.py` | `stats.txt` → CSV. Usa solo el **bloque 1** (ROI); avisa y marca `roi_ok=0` si no hay ROI. `--extra REGEX` agrega stats específicas (p. ej. Ruby) |
 | `scripts/plot.py` | Gráfico de barras o líneas desde el CSV (`--x --y --hue --where --ideal --order`) |
+| `scripts/amdahl.py` | Agrega a un CSV speedup, eficiencia, fracción serial de Karp-Flatt y el ajuste de Amdahl (referencia: 1 núcleo, mismo N) |
+
+`src/gemm_omp.c` usa **pthreads** (no OpenMP, que suele fallar en modo SE). Uso: `gemm_omp N T`;
+en gem5 requiere `-n T` núcleos. La ROI excluye la creación de hilos (barreras antes y después).
 
 Para un experimento nuevo, copiar `run_e1.sh` y cambiar el bucle y los parámetros de `run_sim`.
 
