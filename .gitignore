@@ -11,3 +11,7 @@ results/**/m5out/
 results/**/*.ini
 results/**/*.json
 bin/
+results/**/config.dot*
+# Archivos basura de Windows
+*:Zone.Identifier
+__pycache__/
