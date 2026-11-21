@@ -40,11 +40,25 @@ minutas/   minutas de reuniones
 
 ## Reproducción
 
-_(Se completa a medida que existan los scripts: un comando por experimento regenera CSV y gráficos.)_
+Un comando por experimento corre las simulaciones, genera el CSV (solo la ROI) y los gráficos.
+Las corridas que ya tienen `stats.txt` se saltan (`FORCE=1` para repetirlas).
 
-| Experimento | Comando |
+| Experimento | Comando | Salida |
+|---|---|---|
+| E1 | `bash scripts/run_e1.sh` | `results/e1/e1.csv`, `results/e1/e1_ipc.png` |
+
+Variables opcionales para cualquier `run_eX.sh`: `JOBS=4` (simulaciones en paralelo),
+`VARIANT=ARM_MESI` o `ARM_MOESI`, `GEM5=~/gem5`, `FORCE=1`.
+
+### Scripts comunes
+
+| Script | Para qué |
 |---|---|
-| E1 | `bash scripts/run_e1.sh` |
+| `scripts/common.sh` | Funciones compartidas: `run_sim` lanza una corrida en su carpeta con `run.meta` (metadatos) y `cmd.txt`; controla el paralelismo |
+| `scripts/parse_stats.py` | `stats.txt` → CSV. Usa solo el **bloque 1** (ROI); avisa y marca `roi_ok=0` si no hay ROI. `--extra REGEX` agrega stats específicas (p. ej. Ruby) |
+| `scripts/plot.py` | Gráfico de barras o líneas desde el CSV (`--x --y --hue --where --ideal --order`) |
+
+Para un experimento nuevo, copiar `run_e1.sh` y cambiar el bucle y los parámetros de `run_sim`.
 
 ## Flujo de trabajo
 
