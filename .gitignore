@@ -15,3 +15,5 @@ results/**/config.dot*
 # Archivos basura de Windows
 *:Zone.Identifier
 __pycache__/
+results/**/fs/
+results/**/citations.bib
