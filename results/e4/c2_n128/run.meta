@@ -1,0 +1,8 @@
+# generado por run_e4.sh el 2026-11-21T17:27:21-06:00
+variant=ARM_MESI
+exp=e4
+cpu=o3
+width=2
+cores=2
+threads=2
+n=128

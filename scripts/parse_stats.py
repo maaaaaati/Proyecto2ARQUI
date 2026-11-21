@@ -104,6 +104,10 @@ def metrics(st):
                      ("l2", r"system\.l2")):
         miss = total(st, pat + r"\.overallMisses::total")
         acc = total(st, pat + r"\.overallAccesses::total")
+        # gem5 no imprime stats que valen 0: si la cache tuvo accesos pero no
+        # aparece la línea de fallos, es porque hubo 0 fallos.
+        if acc is not None and miss is None:
+            miss = 0.0
         m[lvl + "_misses"] = miss
         m[lvl + "_accesses"] = acc
         m[lvl + "_miss_rate"] = ratio(miss, acc)

@@ -26,9 +26,13 @@ OUT="$REPO/results/e4"
 
 [ -x "$BIN" ] || { echo "Falta $BIN. Compílalo con: make"; exit 1; }
 
-# El O3 de gem5 trae todos los anchos en 8: se fijan todos de forma coherente.
+# El O3 de gem5 trae todos los anchos en 8. Se fijan los 5 que lista el enunciado
+# (fetch, decode, rename, issue, commit), igual que en E2.
+# NO se toca wbWidth: con wbWidth=2 y 8 núcleos, gem5 v26 aborta con
+# "TimeBuffer out-of-bounds" (IEW::instToCommit empuja a ciclos futuros las
+# instrucciones que no caben en el writeback sin revisar el límite de la cola).
 WIDTH_PARAMS=()
-for p in fetchWidth decodeWidth renameWidth dispatchWidth issueWidth wbWidth commitWidth; do
+for p in fetchWidth decodeWidth renameWidth issueWidth commitWidth; do
     WIDTH_PARAMS+=(--param "system.cpu[:].$p=$WIDTH")
 done
 
