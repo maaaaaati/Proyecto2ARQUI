@@ -1,0 +1,346 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global}
+    \entry{stephens2017sve}{article}{}
+      \name{author}{13}{}{%
+        {{hash=ec88756117026d226d20d25f9f33d1da}{%
+           family={Stephens},
+           familyi={S\bibinitperiod},
+           given={Nigel},
+           giveni={N\bibinitperiod}}}%
+        {{hash=bd3ac953048bfac3870508936e2c3add}{%
+           family={Biles},
+           familyi={B\bibinitperiod},
+           given={Stuart},
+           giveni={S\bibinitperiod}}}%
+        {{hash=84e4e3ba34721031152a74e23c57d1f9}{%
+           family={Boettcher},
+           familyi={B\bibinitperiod},
+           given={Matthias},
+           giveni={M\bibinitperiod}}}%
+        {{hash=dce571baec31e60057898bdb567119c1}{%
+           family={Eapen},
+           familyi={E\bibinitperiod},
+           given={Jacob},
+           giveni={J\bibinitperiod}}}%
+        {{hash=9b05f350528971c021a397291973fcb2}{%
+           family={Eyole},
+           familyi={E\bibinitperiod},
+           given={Mbou},
+           giveni={M\bibinitperiod}}}%
+        {{hash=bd092cf9260b6bcefbf1f5ec3c9b748c}{%
+           family={Gabrielli},
+           familyi={G\bibinitperiod},
+           given={Giacomo},
+           giveni={G\bibinitperiod}}}%
+        {{hash=a580136fa215fd9fbd3fd79bfa79966d}{%
+           family={Horsnell},
+           familyi={H\bibinitperiod},
+           given={Matt},
+           giveni={M\bibinitperiod}}}%
+        {{hash=fad7ca9f6477ea91d0900e25dd8eea29}{%
+           family={Magklis},
+           familyi={M\bibinitperiod},
+           given={Grigorios},
+           giveni={G\bibinitperiod}}}%
+        {{hash=eb20783786d7c8a24fc8bdb77050da2f}{%
+           family={Martinez},
+           familyi={M\bibinitperiod},
+           given={Alejandro},
+           giveni={A\bibinitperiod}}}%
+        {{hash=11c4329abdf49bcafde229fba2ef3072}{%
+           family={Premillieu},
+           familyi={P\bibinitperiod},
+           given={Nathanael},
+           giveni={N\bibinitperiod}}}%
+        {{hash=bc31f255c8c6dfa0447da6848a3bdddf}{%
+           family={Reid},
+           familyi={R\bibinitperiod},
+           given={Alastair},
+           giveni={A\bibinitperiod}}}%
+        {{hash=e615cc59188f6b60755e161085d038f8}{%
+           family={Rico},
+           familyi={R\bibinitperiod},
+           given={Alejandro},
+           giveni={A\bibinitperiod}}}%
+        {{hash=17cf2550587980e35d0d52f474b02afc}{%
+           family={Walker},
+           familyi={W\bibinitperiod},
+           given={Paul},
+           giveni={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{e3f688c526692f49c12198d429d52dad}
+      \strng{fullhash}{ca1eb1e375d3802164d62c5007bc8b11}
+      \strng{bibnamehash}{e3f688c526692f49c12198d429d52dad}
+      \strng{authorbibnamehash}{e3f688c526692f49c12198d429d52dad}
+      \strng{authornamehash}{e3f688c526692f49c12198d429d52dad}
+      \strng{authorfullhash}{ca1eb1e375d3802164d62c5007bc8b11}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Micro}
+      \field{number}{2}
+      \field{title}{The {ARM} Scalable Vector Extension}
+      \field{volume}{37}
+      \field{year}{2017}
+      \field{pages}{26\bibrangedash 39}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.1109/MM.2017.35
+      \endverb
+    \endentry
+    \entry{hill2008amdahl}{article}{}
+      \name{author}{2}{}{%
+        {{hash=47b42f84bac2f8d835e3973e96aed32a}{%
+           family={Hill},
+           familyi={H\bibinitperiod},
+           given={Mark\bibnamedelima D.},
+           giveni={M\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=41296e9f1582a72acd1693c279eab135}{%
+           family={Marty},
+           familyi={M\bibinitperiod},
+           given={Michael\bibnamedelima R.},
+           giveni={M\bibinitperiod\bibinitdelim R\bibinitperiod}}}%
+      }
+      \strng{namehash}{36372b7744339c3d6607a5c7c84c2b91}
+      \strng{fullhash}{36372b7744339c3d6607a5c7c84c2b91}
+      \strng{bibnamehash}{36372b7744339c3d6607a5c7c84c2b91}
+      \strng{authorbibnamehash}{36372b7744339c3d6607a5c7c84c2b91}
+      \strng{authornamehash}{36372b7744339c3d6607a5c7c84c2b91}
+      \strng{authorfullhash}{36372b7744339c3d6607a5c7c84c2b91}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Computer}
+      \field{number}{7}
+      \field{title}{Amdahl's Law in the Multicore Era}
+      \field{volume}{41}
+      \field{year}{2008}
+      \field{pages}{33\bibrangedash 38}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/MC.2008.209
+      \endverb
+    \endentry
+    \entry{binkert2011gem5}{article}{}
+      \name{author}{16}{}{%
+        {{hash=750fa38aa68adc828e6c2992f84bb51d}{%
+           family={Binkert},
+           familyi={B\bibinitperiod},
+           given={Nathan},
+           giveni={N\bibinitperiod}}}%
+        {{hash=793d075c342f0e5f7a4fa75b2ef3816b}{%
+           family={Beckmann},
+           familyi={B\bibinitperiod},
+           given={Bradford},
+           giveni={B\bibinitperiod}}}%
+        {{hash=8729e60e92baf584da915e0ddb24328b}{%
+           family={Black},
+           familyi={B\bibinitperiod},
+           given={Gabriel},
+           giveni={G\bibinitperiod}}}%
+        {{hash=bc10693d87244d977132baf6d87f7ec8}{%
+           family={Reinhardt},
+           familyi={R\bibinitperiod},
+           given={Steven\bibnamedelima K.},
+           giveni={S\bibinitperiod\bibinitdelim K\bibinitperiod}}}%
+        {{hash=4414a147240143c35cd6f4dfeaab3a25}{%
+           family={Saidi},
+           familyi={S\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod}}}%
+        {{hash=c2568530e5c47b25c2f98c38736ac0ac}{%
+           family={Basu},
+           familyi={B\bibinitperiod},
+           given={Arkaprava},
+           giveni={A\bibinitperiod}}}%
+        {{hash=bc0ad07085a7782ec1ba0213b277530e}{%
+           family={Hestness},
+           familyi={H\bibinitperiod},
+           given={Joel},
+           giveni={J\bibinitperiod}}}%
+        {{hash=6a50fb13524c9695882499b1b07dc299}{%
+           family={Hower},
+           familyi={H\bibinitperiod},
+           given={Derek\bibnamedelima R.},
+           giveni={D\bibinitperiod\bibinitdelim R\bibinitperiod}}}%
+        {{hash=e1ce26b15a886cbd409e6a8c2254dd49}{%
+           family={Krishna},
+           familyi={K\bibinitperiod},
+           given={Tushar},
+           giveni={T\bibinitperiod}}}%
+        {{hash=ddb9e3264bbcf2c4b4fae8b811122626}{%
+           family={Sardashti},
+           familyi={S\bibinitperiod},
+           given={Somayeh},
+           giveni={S\bibinitperiod}}}%
+        {{hash=21f922ddca99e4a59e6942caa2935a6f}{%
+           family={Sen},
+           familyi={S\bibinitperiod},
+           given={Rathijit},
+           giveni={R\bibinitperiod}}}%
+        {{hash=18731afaca2b555f3168209cf3b0217e}{%
+           family={Sewell},
+           familyi={S\bibinitperiod},
+           given={Korey},
+           giveni={K\bibinitperiod}}}%
+        {{hash=47575bb6162e1673902319ef01df827b}{%
+           family={Shoaib},
+           familyi={S\bibinitperiod},
+           given={Muhammad},
+           giveni={M\bibinitperiod}}}%
+        {{hash=10dd1b5eda541bcaa709e07bad26e68c}{%
+           family={Vaish},
+           familyi={V\bibinitperiod},
+           given={Nilay},
+           giveni={N\bibinitperiod}}}%
+        {{hash=47b42f84bac2f8d835e3973e96aed32a}{%
+           family={Hill},
+           familyi={H\bibinitperiod},
+           given={Mark\bibnamedelima D.},
+           giveni={M\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=90ff7bda6dcccbcbb9072ac658c451ba}{%
+           family={Wood},
+           familyi={W\bibinitperiod},
+           given={David\bibnamedelima A.},
+           giveni={D\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+      }
+      \strng{namehash}{62f8391f7a2a9817c1bed1a825d7d435}
+      \strng{fullhash}{2dac25be2aaaf066740b3febc8ca707a}
+      \strng{bibnamehash}{62f8391f7a2a9817c1bed1a825d7d435}
+      \strng{authorbibnamehash}{62f8391f7a2a9817c1bed1a825d7d435}
+      \strng{authornamehash}{62f8391f7a2a9817c1bed1a825d7d435}
+      \strng{authorfullhash}{2dac25be2aaaf066740b3febc8ca707a}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{ACM SIGARCH Computer Architecture News}
+      \field{number}{2}
+      \field{title}{The gem5 Simulator}
+      \field{volume}{39}
+      \field{year}{2011}
+      \field{pages}{1\bibrangedash 7}
+      \range{pages}{7}
+      \verb{doi}
+      \verb 10.1145/2024716.2024718
+      \endverb
+    \endentry
+    \entry{lowepower2020gem5}{misc}{}
+      \true{moreauthor}
+      \true{morelabelname}
+      \name{author}{1}{}{%
+        {{hash=1dd67c87ff78c8d698599c4784ee79cb}{%
+           family={Lowe-Power},
+           familyi={L\bibinithyphendelim P\bibinitperiod},
+           given={Jason},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{309b395d85e3c85f5008b306dfbf14c9}
+      \strng{fullhash}{309b395d85e3c85f5008b306dfbf14c9}
+      \strng{bibnamehash}{309b395d85e3c85f5008b306dfbf14c9}
+      \strng{authorbibnamehash}{309b395d85e3c85f5008b306dfbf14c9}
+      \strng{authornamehash}{309b395d85e3c85f5008b306dfbf14c9}
+      \strng{authorfullhash}{309b395d85e3c85f5008b306dfbf14c9}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{eprinttype}{arXiv}
+      \field{title}{The gem5 Simulator: Version 20.0+}
+      \field{year}{2020}
+      \verb{eprint}
+      \verb 2007.03152
+      \endverb
+      \verb{urlraw}
+      \verb https://arxiv.org/abs/2007.03152
+      \endverb
+      \verb{url}
+      \verb https://arxiv.org/abs/2007.03152
+      \endverb
+    \endentry
+    \entry{karp1990}{article}{}
+      \name{author}{2}{}{%
+        {{hash=9a033419cb18643c341ded86ec43f60f}{%
+           family={Karp},
+           familyi={K\bibinitperiod},
+           given={Alan\bibnamedelima H.},
+           giveni={A\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=c0db84f6a03b71f0c431b3cb48b46c5a}{%
+           family={Flatt},
+           familyi={F\bibinitperiod},
+           given={Horace\bibnamedelima P.},
+           giveni={H\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+      }
+      \strng{namehash}{d31bb7b12680caf8d3dd7fe1f9aa8a99}
+      \strng{fullhash}{d31bb7b12680caf8d3dd7fe1f9aa8a99}
+      \strng{bibnamehash}{d31bb7b12680caf8d3dd7fe1f9aa8a99}
+      \strng{authorbibnamehash}{d31bb7b12680caf8d3dd7fe1f9aa8a99}
+      \strng{authornamehash}{d31bb7b12680caf8d3dd7fe1f9aa8a99}
+      \strng{authorfullhash}{d31bb7b12680caf8d3dd7fe1f9aa8a99}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Communications of the ACM}
+      \field{number}{5}
+      \field{title}{Measuring Parallel Processor Performance}
+      \field{volume}{33}
+      \field{year}{1990}
+      \field{pages}{539\bibrangedash 543}
+      \range{pages}{5}
+      \verb{doi}
+      \verb 10.1145/78607.78614
+      \endverb
+    \endentry
+    \entry{amdahl1967}{inproceedings}{}
+      \name{author}{1}{}{%
+        {{hash=9d4382f1500ff84c4eca531179c994c7}{%
+           family={Amdahl},
+           familyi={A\bibinitperiod},
+           given={Gene\bibnamedelima M.},
+           giveni={G\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+      }
+      \strng{namehash}{9d4382f1500ff84c4eca531179c994c7}
+      \strng{fullhash}{9d4382f1500ff84c4eca531179c994c7}
+      \strng{bibnamehash}{9d4382f1500ff84c4eca531179c994c7}
+      \strng{authorbibnamehash}{9d4382f1500ff84c4eca531179c994c7}
+      \strng{authornamehash}{9d4382f1500ff84c4eca531179c994c7}
+      \strng{authorfullhash}{9d4382f1500ff84c4eca531179c994c7}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proc. AFIPS Spring Joint Computer Conference}
+      \field{title}{Validity of the Single Processor Approach to Achieving Large Scale Computing Capabilities}
+      \field{year}{1967}
+      \field{pages}{483\bibrangedash 485}
+      \range{pages}{3}
+      \verb{doi}
+      \verb 10.1145/1465482.1465560
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
