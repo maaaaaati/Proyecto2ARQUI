@@ -67,13 +67,13 @@ def main():
             r["efficiency"] = f"{s / p:.4f}"
             if p > 1:
                 x, y = 1 - 1 / p, 1 / s - 1 / p
-                r["serial_kf"] = f"{y / x:.4f}"
+                r["serial_kf"] = f"{y / x:.6g}"
                 sx += x * x
                 sy += x * y
         fit = sy / sx if sx else None
         for r in group:
             if fit is not None:
-                r["amdahl_f"] = f"{fit:.4f}"
+                r["amdahl_f"] = f"{fit:.6g}"
 
         print(f"N={n}:", file=sys.stderr)
         for r in sorted(group, key=lambda r: f(r["cores"])):
@@ -81,7 +81,7 @@ def main():
                   f"eficiencia={r.get('efficiency', '-'):>7}  "
                   f"Karp-Flatt={r.get('serial_kf', '-'):>7}", file=sys.stderr)
         if fit is not None:
-            print(f"  Amdahl (ajuste): fracción serial f = {fit:.4f}  "
+            print(f"  Amdahl (ajuste): fracción serial f = {fit:.6g}  "
                   f"-> speedup máximo teórico 1/f = {1 / fit if fit > 0 else float('inf'):.1f}",
                   file=sys.stderr)
 

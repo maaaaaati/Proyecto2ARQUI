@@ -14,6 +14,11 @@
  *     y se sincronizan con barreras, así la creación de hilos (llamadas al sistema
  *     emuladas por gem5, con costo poco realista) no contamina la medición.
  *
+ * Modo "full" (./gemm_omp N T full), medición complementaria de E4: la ROI cubre
+ * el programa real completo (inicialización serial de A, B y C, creación de los
+ * hilos, cálculo y espera de los hilos); solo queda fuera la verificación. Sirve
+ * para que la ley de Amdahl vea una fracción serial real.
+ *
  * Reparto: el hilo t calcula las filas [t*N/T, (t+1)*N/T). Bloques contiguos de
  * filas: cada hilo escribe en su propia zona de C (sin falso compartido salvo, a
  * lo sumo, una línea de caché en cada frontera).
@@ -33,6 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include <pthread.h>
 
 #ifdef USE_SVE
@@ -117,6 +123,7 @@ typedef struct {
 } args_t;
 
 static pthread_barrier_t barrier;
+static int full = 0;   /* 1 = modo "full": la ROI la marca main() y no los hilos */
 
 /* Todos los hilos (incluido el principal, id = 0) ejecutan esto. */
 static void *worker(void *p) {
@@ -125,19 +132,20 @@ static void *worker(void *p) {
     int i1 = (int)((long)(a->id + 1) * a->N / a->T);
 
     pthread_barrier_wait(&barrier);          /* todos los hilos creados y listos */
-    if (a->id == 0) ROI_BEGIN();
+    if (a->id == 0 && !full) ROI_BEGIN();
     pthread_barrier_wait(&barrier);          /* nadie empieza antes del reset */
 
     gemm_rows(a->A, a->B, a->C, a->N, i0, i1);
 
     pthread_barrier_wait(&barrier);          /* esperar al hilo más lento */
-    if (a->id == 0) ROI_END();
+    if (a->id == 0 && !full) ROI_END();
     return NULL;
 }
 
 int main(int argc, char **argv) {
     int N = (argc > 1) ? atoi(argv[1]) : 64;
     int T = (argc > 2) ? atoi(argv[2]) : 1;
+    full = (argc > 3) && strcmp(argv[3], "full") == 0;
     if (N <= 0) { fprintf(stderr, "N inválido\n"); return 2; }
     if (T <= 0 || T > MAX_THREADS || T > N) {
         fprintf(stderr, "T inválido (1..%d y T <= N)\n", MAX_THREADS);
@@ -149,6 +157,7 @@ int main(int argc, char **argv) {
     float *C = malloc(sizeof(float) * N * N);
     if (!A || !B || !C) { fprintf(stderr, "Sin memoria\n"); return 2; }
 
+    if (full) ROI_BEGIN();                    /* modo full: desde la inicialización */
     init(A, B, C, N);
 
     pthread_t th[MAX_THREADS];
@@ -165,17 +174,18 @@ int main(int argc, char **argv) {
     worker(&args[0]);                         /* el hilo principal es el hilo 0 */
     for (int t = 1; t < T; t++)
         pthread_join(th[t], NULL);
+    if (full) ROI_END();                      /* ...hasta que terminan todos los hilos */
     pthread_barrier_destroy(&barrier);
 
     int err = check(A, B, C, N);
     double suma = 0.0;
     for (int i = 0; i < N * N; i++) suma += C[i];
 #ifdef USE_SVE
-    printf(NOMBRE " N=%d T=%d VL=%d  checksum=%.1f  %s\n", N, T,
-           (int)svcntw() * 32, suma, err ? "FALLO" : "OK");
+    printf(NOMBRE " N=%d T=%d VL=%d%s  checksum=%.1f  %s\n", N, T,
+           (int)svcntw() * 32, full ? " full" : "", suma, err ? "FALLO" : "OK");
 #else
-    printf(NOMBRE " N=%d T=%d  checksum=%.1f  %s\n", N, T, suma,
-           err ? "FALLO" : "OK");
+    printf(NOMBRE " N=%d T=%d%s  checksum=%.1f  %s\n", N, T, full ? " full" : "",
+           suma, err ? "FALLO" : "OK");
 #endif
 
     free(A); free(B); free(C);

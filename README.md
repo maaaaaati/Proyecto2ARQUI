@@ -34,7 +34,8 @@ src/       gemm_scalar.c, gemm_sve.c, gemm_omp.c (+ gemm_omp_sve), false_sharing
 configs/   scripts de configuración de gem5
 scripts/   build_gem5.sh, run_e1.sh … run_e6.sh, parse_stats.py, plot.py
 results/   una carpeta por corrida (stats.txt) + CSV
-report/    informe IEEE y evidencias
+Informe/   informe IEEE (LaTeX) y sus figuras
+report/    evidencias
 minutas/   minutas de reuniones
 ```
 
@@ -47,6 +48,20 @@ Las corridas que ya tienen `stats.txt` se saltan (`FORCE=1` para repetirlas).
 |---|---|---|
 | E1 | `bash scripts/run_e1.sh` | `results/e1/e1.csv`, `results/e1/e1_ipc.png` |
 | E4 | `bash scripts/run_e4.sh` | `results/e4/e4.csv` (con speedup, eficiencia, fracción serial), `e4_speedup.png`, `e4_efficiency.png`, `e4_l2_misses.png` |
+| E4, programa completo | `MODE=full bash scripts/run_e4.sh` | lo mismo en `results/e4_full/`: la ROI incluye la inicialización y la creación y espera de los hilos |
+| E6 | `bash scripts/run_e6.sh` | `results/e6/e6.csv` (con costo, tiempo, GFLOP/s y GFLOP/s por costo), `e6_time.png`, `e6_perf_cost.png` |
+
+**E6:** cada configuración se pasa como `núcleos:ancho:VL[:protocolo]`, con protocolo `classic`
+(por defecto), `mesi` o `moesi` (estos dos con Ruby). Las corridas se acumulan en `results/e6/`,
+así que cada integrante puede agregar las suyas sin repetir las demás:
+
+```bash
+CONFIGS="4:4:256 2:8:512 8:2:128:moesi" bash scripts/run_e6.sh
+```
+
+**Anchos del O3:** los scripts fijan solo `fetchWidth`, `decodeWidth`, `renameWidth`, `issueWidth`
+y `commitWidth`. No fijen `wbWidth` en 1 o 2: gem5 v26 aborta con `TimeBuffer out-of-bounds`
+(error en `IEW::instToCommit`).
 
 Variables opcionales para cualquier `run_eX.sh`: `JOBS=4` (simulaciones en paralelo),
 `VARIANT=ARM_MESI` o `ARM_MOESI`, `GEM5=~/gem5`, `FORCE=1`.
@@ -59,9 +74,11 @@ Variables opcionales para cualquier `run_eX.sh`: `JOBS=4` (simulaciones en paral
 | `scripts/parse_stats.py` | `stats.txt` → CSV. Usa solo el **bloque 1** (ROI); avisa y marca `roi_ok=0` si no hay ROI. `--extra REGEX` agrega stats específicas (p. ej. Ruby) |
 | `scripts/plot.py` | Gráfico de barras o líneas desde el CSV (`--x --y --hue --where --ideal --order`) |
 | `scripts/amdahl.py` | Agrega a un CSV speedup, eficiencia, fracción serial de Karp-Flatt y el ajuste de Amdahl (referencia: 1 núcleo, mismo N) |
+| `scripts/e6_cost.py` | Agrega a un CSV el costo `núcleos × (ancho/2 + VL/128)`, el tiempo, los GFLOP/s y los GFLOP/s por unidad de costo; imprime la tabla ordenada |
 
-`src/gemm_omp.c` usa **pthreads** (no OpenMP, que suele fallar en modo SE). Uso: `gemm_omp N T`;
-en gem5 requiere `-n T` núcleos. La ROI excluye la creación de hilos (barreras antes y después).
+`src/gemm_omp.c` usa **pthreads** (no OpenMP, que suele fallar en modo SE). Uso: `gemm_omp N T [full]`;
+en gem5 requiere `-n T` núcleos. Por defecto la ROI excluye la creación de hilos (barreras antes y
+después); con `full` cubre el programa completo salvo la verificación.
 
 Del mismo fuente sale `gemm_omp_sve` (compilado con `-DUSE_SVE`): igual reparto por filas, pero
 con el kernel SVE de `gemm_sve.c` dentro de cada hilo. Es el binario de E6, donde se combinan
