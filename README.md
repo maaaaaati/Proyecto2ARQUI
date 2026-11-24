@@ -30,7 +30,7 @@ make test     # valida en QEMU
 ## Estructura
 
 ```
-src/       gemm_scalar.c, gemm_sve.c, gemm_omp.c, false_sharing.c
+src/       gemm_scalar.c, gemm_sve.c, gemm_omp.c (+ gemm_omp_sve), false_sharing.c
 configs/   scripts de configuración de gem5
 scripts/   build_gem5.sh, run_e1.sh … run_e6.sh, parse_stats.py, plot.py
 results/   una carpeta por corrida (stats.txt) + CSV
@@ -62,6 +62,14 @@ Variables opcionales para cualquier `run_eX.sh`: `JOBS=4` (simulaciones en paral
 
 `src/gemm_omp.c` usa **pthreads** (no OpenMP, que suele fallar en modo SE). Uso: `gemm_omp N T`;
 en gem5 requiere `-n T` núcleos. La ROI excluye la creación de hilos (barreras antes y después).
+
+Del mismo fuente sale `gemm_omp_sve` (compilado con `-DUSE_SVE`): igual reparto por filas, pero
+con el kernel SVE de `gemm_sve.c` dentro de cada hilo. Es el binario de E6, donde se combinan
+núcleos y longitud vectorial. La VL se fija en gem5 en unidades de 128 bits:
+
+```bash
+--param 'system.cpu[:].isa[:].sve_vl_se=2'     # VL = 256 bits
+```
 
 Para un experimento nuevo, copiar `run_e1.sh` y cambiar el bucle y los parámetros de `run_sim`.
 
