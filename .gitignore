@@ -17,3 +17,18 @@ results/**/config.dot*
 __pycache__/
 results/**/fs/
 results/**/citations.bib
+
+# Archivos auxiliares de LaTeX (se regeneran al compilar)
+*.aux
+*.log
+*.bbl
+*.bcf
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.run.xml
+*.out
+*.toc
+# ...pero los sim.log de gem5 si se versionan (son parte de los datos crudos)
+!results/**/sim.log

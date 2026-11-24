@@ -1,0 +1,504 @@
+%=====================================================================
+%  Proyecto 2 - Arquitectura de Computadoras
+%  Arquitecturas paralelas para la multiplicación de matrices en gem5
+%  (GEMM en modo SE, ARMv8 + SVE)
+%
+%  Convención: \pendiente{...} marca texto que falta (sale en rojo en el
+%  PDF). Antes de entregar: buscar "pendiente" y que no quede ninguno.
+% =====================================================================
+\documentclass[journal]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla,es-nodecimaldot]{babel}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[justification=centering]{caption}
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\sisetup{output-decimal-marker={,}, group-separator={\,}, group-minimum-digits=4,
+  per-mode=symbol, range-phrase={~a~}, range-units=single}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[style=ieee, backend=biber]{biblatex}
+\addbibresource{referencias.bib}
+\renewcommand*{\bibfont}{\footnotesize}
+\usepackage{csquotes}
+\usepackage{url}
+\hyphenation{mul-ti-pro-ce-sa-dor co-he-ren-cia su-per-es-ca-lar
+             vec-to-rial pa-ra-le-lis-mo}
+
+\newcommand{\pendiente}[1]{\textcolor{red}{[PENDIENTE: #1]}}
+
+\definecolor{fondo}{rgb}{0.97,0.97,0.97}
+\lstdefinestyle{shell}{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{fondo},
+  frame=single, rulecolor=\color{gray!50},
+  breaklines=true, showstringspaces=false, captionpos=b,
+  xleftmargin=4pt
+}
+\lstset{style=shell}
+
+\begin{document}
+
+% ---------------------------------------------------------------------
+%  Datos del informe
+% ---------------------------------------------------------------------
+\newcommand{\titulo}{Arquitecturas Paralelas para la Multiplicación de
+  Matrices en gem5}
+\newcommand{\curso}{EL4314 Arquitectura de Computadoras}
+
+\renewcommand{\thetable}{\arabic{table}}
+\renewcommand{\figurename}{Fig.}
+\renewcommand\IEEEkeywordsname{Palabras clave}
+
+\title{\titulo}
+\author{Matías Camacho Abarca, jeacamacho@estudiantec.cr \\
+Victoria Cerdas López, 	vicerdas@estudiantec.cr \\
+Wilbert Román Rodríguez, alonso05rr01@estudiantec.cr\\
+Marvin Zelaya Luna, mzelaya@estudiantec.cr}
+\maketitle
+\markboth{\curso. \titulo}{}
+
+% ---------------------------------------------------------------------
+\begin{abstract}
+Se evalúa, mediante simulación en gem5 (modo SE, ARMv8 con SVE), qué
+combinación de número de núcleos, ancho superescalar, longitud vectorial
+y protocolo de coherencia minimiza el tiempo de ejecución de una
+multiplicación de matrices densas en precisión simple (GEMM) bajo un
+presupuesto de 32 unidades de costo. Se estudian por separado una línea
+base de un núcleo (E1), el ancho y la ventana de un núcleo fuera de
+orden (E2), la extensión vectorial SVE (E3), un multiprocesador de
+memoria compartida (E4) y los protocolos MESI y MOESI ante falso
+compartido (E5), y con esos resultados se exploran configuraciones bajo
+el presupuesto (E6). Todas las métricas se extraen solo de la región de
+interés. En E4, el GEMM paralelizado por filas alcanza un
+\textit{speedup} de $7{,}996\times$ con 8 núcleos O3 de ancho 2 para
+$N=128$, con una fracción serial estimada por la ley de Amdahl del
+orden de $10^{-4}$.
+\pendiente{completar con los resultados principales de E1--E3, E5 y la
+arquitectura recomendada en E6 (configuración, costo y tiempo).}
+\end{abstract}
+
+\begin{IEEEkeywords}
+gem5, GEMM, ARMv8, SVE, superescalar, multiprocesador, ley de Amdahl,
+coherencia de caché, MESI, MOESI, falso compartido.
+\end{IEEEkeywords}
+
+% =====================================================================
+\section{Introducción}
+
+La multiplicación de matrices densas $C = A \times B$ es el núcleo
+computacional de las capas totalmente conectadas de una red neuronal y
+concentra más del \SI{80}{\percent} de su cómputo. Para un procesador de
+inferencia en el borde, el área y la energía están acotadas, de modo que
+el problema de diseño no es solo acelerar GEMM, sino decidir en qué
+recurso invertir un presupuesto limitado: más núcleos, núcleos más
+anchos o registros vectoriales más largos.
+
+Este trabajo actúa como el equipo de arquitectura de ese procesador y
+responde la pregunta: \emph{con un presupuesto de 32 unidades de costo,
+¿qué combinación de núcleos, ancho superescalar, longitud vectorial y
+protocolo de coherencia minimiza el tiempo de ejecución de GEMM?} El
+costo de una configuración se modela como
+\begin{equation}
+  \mathrm{Costo} = N_{\text{núcleos}} \times
+  \left( \frac{W_{\text{issue}}}{2} + \frac{VL}{128} \right) \le 32,
+  \label{eq:costo}
+\end{equation}
+donde $W_{\text{issue}} \in \{1{,}2,4{,}8\}$ es el ancho de emisión del
+núcleo fuera de orden y $VL \in \{128, \dots, 1024\}$ bits es la
+longitud vectorial de SVE~\cite{stephens2017sve}. El modelo hace
+explícita la tensión que estudian Hill y Marty~\cite{hill2008amdahl}:
+duplicar el ancho o la longitud vectorial de cada núcleo cuesta lo mismo
+que duplicar el número de núcleos.
+
+Para responder con evidencia se realizan seis experimentos en el
+simulador gem5~\cite{binkert2011gem5,lowepower2020gem5}
+(Tabla~\ref{tab:experimentos}). La sección~\ref{sec:metodologia}
+describe el entorno, los programas y la metodología común; las
+secciones~\ref{sec:e1} a~\ref{sec:e6} presentan cada experimento, y la
+sección~\ref{sec:conclusiones} resume la recomendación final.
+
+\begin{table}[h]
+\centering
+\caption{Experimentos realizados ($N = 64$ y $128$ salvo en E6).}
+\label{tab:experimentos}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|c|p{3.1cm}|p{3.6cm}|}
+\hline
+\textbf{Exp.} & \textbf{Variables} & \textbf{Pregunta guía} \\ \hline
+E1 & TimingSimple, Minor, O3 (1 núcleo) & ¿Cuánto gana un núcleo fuera de orden? \\ \hline
+E2 & Ancho 1, 2, 4, 8; ROB 32, 64, 192 & ¿Dónde se satura el IPC y por qué? \\ \hline
+E3 & Escalar vs.\ SVE, VL 128--1024 & ¿La ganancia escala con VL? \\ \hline
+E4 & 1, 2, 4, 8 núcleos O3 de ancho 2 & ¿Qué fracción serial estima Amdahl? \\ \hline
+E5 & MESI vs.\ MOESI, con y sin relleno & ¿Cuánto cuesta el falso compartido? \\ \hline
+E6 & $\ge 6$ configuraciones de costo $\le 32$, $N=128$ & ¿Cuál es la mejor arquitectura? \\ \hline
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Metodología}
+\label{sec:metodologia}
+
+\subsection{Entorno de simulación}
+
+La Tabla~\ref{tab:entorno} resume las versiones empleadas. gem5 se
+compiló dos veces, una por protocolo de coherencia de Ruby, porque el
+script de configuración \texttt{se.py} selecciona la red y los
+controladores a partir del protocolo con que se compiló el binario.
+
+\begin{table}[h]
+\centering
+\caption{Entorno de simulación.}
+\label{tab:entorno}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|l|p{5cm}|}
+\hline
+\textbf{Elemento} & \textbf{Valor} \\ \hline
+Simulador        & gem5 v26.0.0.0 (\texttt{stable}, \texttt{9d36889}) \\ \hline
+Binarios         & \texttt{ARM\_MESI} (MESI\_Two\_Level) y
+                   \texttt{ARM\_MOESI} (MOESI\_CMP\_directory) \\ \hline
+Modo             & SE con \texttt{se.py} (en \texttt{configs/deprecated}) \\ \hline
+ISA invitada     & ARMv8-A (AArch64), SVE para E3 \\ \hline
+Compilador       & \texttt{aarch64-linux-gnu-gcc} 13.3.0, enlace estático \\ \hline
+Validación       & QEMU \emph{user mode} 8.2.2 \\ \hline
+Anfitrión        & Intel Core i5-1235U, Ubuntu 24.04.3 sobre WSL2 \\ \hline
+\end{tabular}
+\end{table}
+
+A partir de la versión 24 gem5 reemplazó las opciones de compilación de
+SCons por un sistema basado en Kconfig, por lo que la sintaxis
+\texttt{--default=ARM PROTOCOL=\dots} de la documentación anterior ya no
+funciona. Cada variante se configura con un archivo de opciones y
+\texttt{scons defconfig}; el procedimiento completo está en
+\texttt{scripts/build\_gem5.sh}. La compilación necesita más de
+\SI{3}{GB} de memoria por proceso en algunos archivos, lo que obligó a
+compilar con un solo hilo.
+
+Salvo que se indique lo contrario, los experimentos usan la jerarquía
+de caché clásica de \texttt{se.py} (\texttt{--caches --l2cache}): L1I de
+\SI{32}{KiB} y L1D de \SI{64}{KiB} privadas, asociativas de 2 vías, y
+una L2 compartida de \SI{2}{MiB} y 8 vías, con líneas de \SI{64}{B} y
+núcleos a \SI{2}{GHz}.
+
+\subsection{Programas}
+
+Todos los experimentos usan los mismos programas en C, compilados con
+\texttt{-O2 -fno-tree-vectorize -static} para que el código escalar no
+sea vectorizado por el compilador:
+\begin{itemize}
+  \item \texttt{gemm\_scalar}: GEMM escalar en orden de bucles
+        $i$-$k$-$j$, que recorre $B$ y $C$ por filas con paso unitario.
+  \item \texttt{gemm\_sve}: el mismo algoritmo con intrínsecos SVE
+        independientes de la longitud vectorial (VLA), de modo que un
+        mismo binario corre con cualquier VL.
+  \item \texttt{gemm\_omp}: GEMM paralelo por filas. Se implementó con
+        \emph{pthreads} y enlace estático, la alternativa que sugiere el
+        enunciado cuando OpenMP no funciona en modo SE. El hilo $t$ de
+        $T$ calcula las filas $[tN/T,\,(t+1)N/T)$; no hay escrituras
+        compartidas entre hilos.
+  \item \texttt{false\_sharing}: \pendiente{descripción del
+        microbenchmark de contadores compartidos de E5.}
+\end{itemize}
+
+Los tres programas de GEMM inicializan $A$ y $B$ con valores
+deterministas, calculan una suma de verificación de $C$ y la comparan
+contra una implementación de referencia. Todos se validaron en QEMU
+antes de simularlos (por ejemplo, \texttt{gemm\_omp} con
+$T \in \{1{,}2,3{,}4,8\}$ y $N \in \{16, 64, 128\}$), y cada simulación de
+gem5 imprime \texttt{OK} al terminar.
+
+\subsection{Región de interés}
+
+El enunciado exige que las métricas excluyan la inicialización. Cada
+programa llama a \texttt{m5\_reset\_stats()} justo antes del cálculo y
+a \texttt{m5\_dump\_stats()} justo después, de modo que el
+\texttt{stats.txt} contiene dos bloques: el primero corresponde
+exactamente a la región de interés (ROI) y el segundo al resto del
+programa. El analizador \texttt{scripts/parse\_stats.py} toma solo el
+primer bloque y marca con \texttt{roi\_ok = 0} cualquier corrida que no
+tenga ambos. En la corrida de E1 con $N=128$, por ejemplo, la ROI suma
+\num{14812039} instrucciones frente a \num{27.7e6} del resto del
+programa, lo que confirma que la inicialización y la verificación
+quedan fuera.
+
+En \texttt{gemm\_omp} todos los hilos se crean antes de la ROI y se
+sincronizan con una barrera; solo el hilo 0 marca el inicio y el fin, y
+lo hace entre dos barreras, de modo que la ROI cubre únicamente el
+cálculo paralelo.
+
+\subsection{Reproducibilidad}
+
+Cada experimento se regenera con un solo comando
+(\texttt{bash scripts/run\_eX.sh}) que lanza las simulaciones, convierte
+los \texttt{stats.txt} en un CSV y produce los gráficos. Los
+\texttt{stats.txt} crudos, los CSV y los gráficos están versionados en
+\texttt{results/}, y el \texttt{README} del repositorio documenta la
+instalación y la reproducción. \pendiente{enlace al repositorio.}
+
+\subsection{Limitación encontrada en el núcleo O3}
+
+Al fijar el ancho de \emph{writeback} (\texttt{wbWidth}) en 2 con 8
+núcleos y $N=128$, gem5 v26 aborta con
+\texttt{TimeBuffer out-of-bounds access}. El origen está en
+\texttt{IEW::instToCommit}, que desplaza a ciclos futuros las
+instrucciones que no caben en el ancho de \emph{writeback} sin comprobar
+el tamaño de la cola temporal; aumentar el tamaño de la cola solo
+desplaza el índice del error. Por ello, en todos los experimentos se
+fijan únicamente los cinco anchos que lista el enunciado
+(\texttt{fetch}, \texttt{decode}, \texttt{rename}, \texttt{issue} y
+\texttt{commit}) y \texttt{wbWidth} conserva su valor por defecto de 8.
+
+% =====================================================================
+\section{E1: Línea Base de un Núcleo}
+\label{sec:e1}
+
+E1 compara tres modelos de núcleo ejecutando \texttt{gemm\_scalar}:
+TimingSimple, que ejecuta una instrucción a la vez y se detiene en cada
+acceso a memoria; Minor, segmentado en orden, y O3, fuera de orden.
+
+\begin{table}[h]
+\centering
+\caption{Resultados de E1 (ROI).}
+\label{tab:e1}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|l|c|r|c|c|c|}
+\hline
+\textbf{Núcleo} & $N$ & \textbf{Ciclos} & \textbf{IPC} & \textbf{CPI} &
+\textbf{Fallos L1D} \\ \hline
+TimingSimple & 64  & \num{5317804}  & $0{,}351$ & $2{,}85$ & 0 \\ \hline
+TimingSimple & 128 & \num{42529240} & $0{,}348$ & $2{,}87$ & \num{12047} \\ \hline
+Minor        & 64  & \pendiente{} & & & \\ \hline
+Minor        & 128 & \pendiente{} & & & \\ \hline
+O3           & 64  & \pendiente{} & & & \\ \hline
+O3           & 128 & \pendiente{} & & & \\ \hline
+\end{tabular}
+\end{table}
+
+El IPC de TimingSimple, cercano a $0{,}35$, es prácticamente independiente
+de $N$: este modelo no solapa nada, de modo que cada instrucción paga
+completa la latencia de su búsqueda en la caché de instrucciones y, si
+es una carga o un almacenamiento ---el \SI{43}{\percent} de las
+instrucciones de la ROI---, también la del acceso a datos. Con $N=64$
+las tres matrices ocupan \SI{48}{KiB}, caben en la L1D de \SI{64}{KiB} y
+ya están en ella desde la inicialización, por lo que la ROI no registra
+ningún fallo de L1D. Con $N=128$ ocupan \SI{192}{KiB}; los fallos
+aparecen pero su tasa es de solo \SI{0,19}{\percent}, porque el orden
+$i$-$k$-$j$ recorre las filas con paso unitario y aprovecha cada línea
+de \SI{64}{B} completa, y la L2 los resuelve casi todos (2 fallos de
+L2).
+
+Como referencia preliminar, un solo núcleo O3 de ancho 2 (corrida de
+un núcleo de E4, prácticamente las mismas instrucciones) necesita
+\num{18899490} ciclos con $N=128$: $2{,}25$ veces menos que TimingSimple.
+\pendiente{completar con Minor y O3 por defecto, añadir el gráfico
+\texttt{e1\_ipc.png} con los tres núcleos y responder la pregunta guía.}
+
+% =====================================================================
+\section{E2: Núcleo Superescalar}
+\label{sec:e2}
+
+\pendiente{Integrante 1. Barrido de ancho 1, 2, 4, 8 y ROB 32, 64, 192;
+IPC, ocupación de IQ y ROB, fallos de predicción. ¿Dónde se satura el
+IPC y por qué?}
+
+% =====================================================================
+\section{E3: Extensión Vectorial SVE}
+\label{sec:e3}
+
+\pendiente{Integrante 2. Escalar vs.\ SVE con VL de 128 a 1024 bits;
+instrucciones, ciclos y \textit{speedup}. ¿La ganancia escala con VL?}
+
+% =====================================================================
+\section{E4: Multiprocesador de Memoria Compartida}
+\label{sec:e4}
+
+\subsection{Configuración}
+
+E4 ejecuta \texttt{gemm\_omp} con 1, 2, 4 y 8 núcleos O3 de ancho 2 y
+tantos hilos como núcleos, con L1 privadas y la L2 compartida descritas
+en la sección~\ref{sec:metodologia}. El \textit{speedup} con $p$ núcleos
+se calcula como $S(p) = T(1)/T(p)$ sobre los ciclos de la ROI, y la
+eficiencia como $E(p) = S(p)/p$. La fracción serial $f$ se estima de
+dos maneras: con la métrica de Karp-Flatt~\cite{karp1990},
+\begin{equation}
+  e(p) = \frac{1/S(p) - 1/p}{1 - 1/p},
+  \label{eq:karpflatt}
+\end{equation}
+que despeja $f$ de la ley de Amdahl~\cite{amdahl1967} para cada $p$, y
+con un ajuste por mínimos cuadrados de
+$1/S(p) = f + (1-f)/p$ sobre todas las mediciones de un mismo $N$
+(\texttt{scripts/amdahl.py}).
+
+\subsection{Resultados}
+
+\begin{table}[h]
+\centering
+\caption{Resultados de E4 (ROI, O3 de ancho 2).}
+\label{tab:e4}
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{|c|c|r|c|c|c|r|r|}
+\hline
+$N$ & $p$ & \textbf{Ciclos} & $S(p)$ & $E(p)$ & $e(p)$ &
+\textbf{F.\ L1D} & \textbf{F.\ L2} \\ \hline
+64  & 1 & \num{2359776} & $1{,}000$ & $1{,}000$ & ---      & 0          & 3  \\ \hline
+64  & 2 & \num{1181240} & $1{,}998$ & $0{,}999$ & $0{,}0011$ & 693        & 6  \\ \hline
+64  & 4 & \num{590950}  & $3{,}993$ & $0{,}998$ & $0{,}0006$ & \num{1419} & 12 \\ \hline
+64  & 8 & \num{295836}  & $7{,}977$ & $0{,}997$ & $0{,}0004$ & \num{2635} & 29 \\ \hline
+128 & 1 & \num{18899490} & $1{,}000$ & $1{,}000$ & ---      & \num{32026} & 3  \\ \hline
+128 & 2 & \num{9450225}  & $2{,}000$ & $1{,}000$ & $0{,}0001$ & \num{23913} & 6  \\ \hline
+128 & 4 & \num{4726567}  & $3{,}999$ & $1{,}000$ & $0{,}0001$ & \num{27548} & 12 \\ \hline
+128 & 8 & \num{2363496}  & $7{,}996$ & $1{,}000$ & $0{,}0001$ & \num{26940} & 24 \\ \hline
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:e4} y la Fig.~\ref{fig:e4speedup} muestran un
+\textit{speedup} prácticamente ideal: con 8 núcleos se obtiene
+$7{,}977\times$ para $N=64$ y $7{,}996\times$ para $N=128$, y la curva medida
+se superpone a la ideal. La eficiencia (Fig.~\ref{fig:e4eff}) no baja de
+$0{,}997$. El ajuste de Amdahl estima $f = 6\times10^{-4}$ para $N=64$ y
+$f = 1\times10^{-4}$ para $N=128$.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\columnwidth]{fig/e4_speedup.png}
+  \caption{\textit{Speedup} de GEMM paralelo frente al número de
+    núcleos, con la recta ideal $S(p) = p$.}
+  \label{fig:e4speedup}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\columnwidth]{fig/e4_efficiency.png}
+  \caption{Eficiencia paralela $E(p) = S(p)/p$.}
+  \label{fig:e4eff}
+\end{figure}
+
+\subsection{Análisis}
+
+Que el \textit{speedup} sea casi ideal no es un accidente; se explica
+por cuatro propiedades de la carga y de la medición:
+\begin{enumerate}
+  \item \textbf{Trabajo idéntico e independiente.} Cada hilo calcula
+        $N/p$ filas completas de $C$ con exactamente el mismo número de
+        operaciones, así que la carga está perfectamente balanceada. El
+        total de instrucciones de la ROI apenas cambia con $p$: de
+        \num{14779706} con un núcleo a \num{14780556} con ocho para
+        $N=128$ ($+\SI{0{,}006}{\percent}$), diferencia que corresponde a
+        las barreras.
+  \item \textbf{Sin escrituras compartidas.} $A$ y $B$ solo se leen y
+        cada hilo escribe filas distintas de $C$. Las líneas de $B$
+        pueden estar copiadas en varias L1 a la vez en estado
+        compartido sin generar invalidaciones, de modo que no hay
+        tráfico de coherencia que serialice a los núcleos.
+  \item \textbf{El conjunto de trabajo cabe en la L2.} Las tres
+        matrices ocupan \SI{192}{KiB} con $N=128$, menos del
+        \SI{10}{\percent} de la L2 de \SI{2}{MiB}, y quedaron en ella al
+        inicializarlas. Por eso los fallos de L2 son despreciables (de
+        3 a 29) y crecen en unos 3 por núcleo, lo que es consistente
+        con fallos obligatorios sobre los datos privados de cada hilo
+        y no con contención por la memoria principal.
+  \item \textbf{La ROI solo mide la parte paralela.} La creación de
+        los hilos, la inicialización y la verificación, que son las
+        partes realmente seriales del programa, quedan fuera de la ROI
+        por diseño de la medición.
+\end{enumerate}
+
+La Fig.~\ref{fig:e4l2} y los fallos de L1D de la Tabla~\ref{tab:e4}
+muestran el único efecto de memoria visible. Con $N=64$ y un núcleo
+los \SI{48}{KiB} de datos están en la L1D desde la inicialización y no
+hay fallos; con $p$ núcleos, las L1 de los otros $p-1$ núcleos empiezan
+vacías y cada una debe traer $B$ completa desde la L2, por lo que los
+fallos de L1D crecen aproximadamente con $p$. Como los resuelve la L2
+compartida con una latencia de unos 20 ciclos y su número es pequeño
+frente al trabajo de cada núcleo, el costo es de a lo sumo el
+\SI{0,3}{\percent}; es la causa de que la eficiencia con $N=64$ quede
+ligeramente por debajo de la de $N=128$, donde cada núcleo tiene ocho
+veces más trabajo para amortizar el mismo arranque en frío. Con
+$N=128$ ocurre lo contrario: los \SI{192}{KiB} no caben en una sola L1D
+y un núcleo sufre \num{32026} fallos de capacidad, pero repartidos entre
+$p$ núcleos el total se mantiene entre \num{24000} y \num{28000}, porque
+cada núcleo sigue recorriendo $B$ completa por cada fila.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\columnwidth]{fig/e4_l2_misses.png}
+  \caption{Fallos de L2 en la ROI según el número de núcleos.}
+  \label{fig:e4l2}
+\end{figure}
+
+\subsection{Respuesta a la pregunta guía}
+
+Dentro de la ROI la ley de Amdahl estima una fracción serial de entre
+$10^{-4}$ y $6\times10^{-4}$: el cálculo de GEMM por filas es, a efectos
+prácticos, completamente paralelo, y el límite de Amdahl
+($S_{\max} = 1/f$) queda muy por encima de los 8 núcleos estudiados.
+Para el diseño de E6 esto significa que, mientras el conjunto de
+trabajo quepa en la L2 compartida, añadir núcleos convierte el
+presupuesto en rendimiento casi linealmente. Ese supuesto deja de valer
+para $N$ grandes: con $N=1024$ las matrices ocupan \SI{12}{MiB} y no
+caben en la L2, y los núcleos competirían por el ancho de banda de la
+memoria principal.
+\pendiente{decidir si se agrega una medición complementaria con la
+creación de hilos dentro de la ROI, que daría una fracción serial
+visible.}
+
+% =====================================================================
+\section{E5: Coherencia de Memoria}
+\label{sec:e5}
+
+\pendiente{Integrante 4. MESI\_Two\_Level vs.\ MOESI\_CMP\_directory,
+\texttt{false\_sharing} con y sin relleno y GEMM paralelo, 2 a 8 núcleos;
+invalidaciones, mensajes y latencia de fallo. ¿Cuánto cuesta el falso
+compartido? ¿Qué estado del protocolo genera el tráfico extra?}
+
+% =====================================================================
+\section{E6: Exploración Bajo Presupuesto}
+\label{sec:e6}
+
+La Tabla~\ref{tab:e6} recoge las configuraciones evaluadas con
+$N=128$. Cada una se justifica con un resultado de E2--E5.
+
+\begin{table}[h]
+\centering
+\caption{Configuraciones de E6 (GEMM, $N = 128$).}
+\label{tab:e6}
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+\textbf{Núcl.} & $W$ & \textbf{VL} & \textbf{Prot.} & \textbf{Costo} &
+\textbf{Tiempo} & \textbf{Rend./costo} \\ \hline
+8  & 2 & 128 & \pendiente{} & 16 & & \\ \hline
+16 & 2 & 128 & \pendiente{} & 32 & & \\ \hline
+\multicolumn{7}{|c|}{\pendiente{otras 4 configuraciones como mínimo}} \\ \hline
+\end{tabular}
+\end{table}
+
+Las dos primeras filas exploran la estrategia de muchos núcleos
+simples que sugiere E4: con 8 núcleos de ancho 2 y VL de 128 bits se
+gasta la mitad del presupuesto, y con 16 se gasta completo. Según
+\eqref{eq:costo}, un núcleo de ancho 2 y VL de 128 bits cuesta 2
+unidades, el mínimo posible con SVE.
+\pendiente{resultados, configuración recomendada por tiempo y por
+rendimiento/costo, y análisis de sensibilidad con $N = 1024$ y
+presupuesto de 16.}
+
+% =====================================================================
+\section{Conclusiones}
+\label{sec:conclusiones}
+
+\pendiente{respuesta a la pregunta del proyecto: configuración
+recomendada, su costo y tiempo, y las alternativas descartadas con su
+justificación.}
+
+\pendiente{enlace al video de conclusiones en YouTube (no listado).}
+
+\printbibliography
+
+\end{document}
