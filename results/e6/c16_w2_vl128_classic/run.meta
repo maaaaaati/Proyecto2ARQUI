@@ -1,0 +1,10 @@
+# generado por run_e6.sh el 2026-11-24T13:06:36-06:00
+variant=ARM_MESI
+exp=e6
+cpu=o3
+cores=16
+threads=16
+width=2
+vl=128
+protocol=classic
+n=128
