@@ -1,0 +1,3 @@
+run,roi_ok,variant,exp,cpu,n,cores,sim_ticks,sim_seconds,sim_insts,sim_ops,cycles,ipc,cpi,l1d_misses,l1d_accesses,l1d_miss_rate,l1i_misses,l1i_accesses,l1i_miss_rate,l2_misses,l2_accesses,l2_miss_rate,branch_mispredicts,rob_full_events,iq_full_events
+timingsimple_n128,1,ARM_MESI,e1,timingsimple,128,1,21264620000,0.021265,14812039,14812039,42529240,0.348279,2.87126,12047,6307841,0.00190985,2,14812039,1.35025e-07,2,12049,0.000165989,,,
+timingsimple_n64,1,ARM_MESI,e1,timingsimple,64,1,2658902000,0.002659,1868231,1868231,5317804,0.351316,2.84644,0,790529,0,2,1868231,1.07053e-06,2,2,1,,,

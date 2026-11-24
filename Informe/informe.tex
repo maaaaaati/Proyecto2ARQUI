@@ -75,7 +75,9 @@ el presupuesto (E6). Todas las métricas se extraen solo de la región de
 interés. En E4, el GEMM paralelizado por filas alcanza un
 \textit{speedup} de $7{,}996\times$ con 8 núcleos O3 de ancho 2 para
 $N=128$, con una fracción serial estimada por la ley de Amdahl del
-orden de $10^{-4}$.
+orden de $10^{-4}$; al medir el programa completo, la inicialización
+serial y la creación de hilos elevan esa fracción a \SI{1,6}{\percent}
+y limitan el \textit{speedup} a $7{,}17\times$.
 \pendiente{completar con los resultados principales de E1--E3, E5 y la
 arquitectura recomendada en E6 (configuración, costo y tiempo).}
 \end{abstract}
@@ -200,11 +202,15 @@ sea vectorizado por el compilador:
         enunciado cuando OpenMP no funciona en modo SE. El hilo $t$ de
         $T$ calcula las filas $[tN/T,\,(t+1)N/T)$; no hay escrituras
         compartidas entre hilos.
+  \item \texttt{gemm\_omp\_sve}: el mismo fuente compilado con
+        \texttt{-DUSE\_SVE}, que reemplaza el bucle interno por el
+        kernel de \texttt{gemm\_sve}. Combina los núcleos y la longitud
+        vectorial, y es el programa de E6.
   \item \texttt{false\_sharing}: \pendiente{descripción del
         microbenchmark de contadores compartidos de E5.}
 \end{itemize}
 
-Los tres programas de GEMM inicializan $A$ y $B$ con valores
+Todos los programas de GEMM inicializan $A$ y $B$ con valores
 deterministas, calculan una suma de verificación de $C$ y la comparan
 contra una implementación de referencia. Todos se validaron en QEMU
 antes de simularlos (por ejemplo, \texttt{gemm\_omp} con
@@ -294,7 +300,7 @@ L2).
 
 Como referencia preliminar, un solo núcleo O3 de ancho 2 (corrida de
 un núcleo de E4, prácticamente las mismas instrucciones) necesita
-\num{18899490} ciclos con $N=128$: $2{,}25$ veces menos que TimingSimple.
+\num{18899513} ciclos con $N=128$: $2{,}25$ veces menos que TimingSimple.
 \pendiente{completar con Minor y O3 por defecto, añadir el gráfico
 \texttt{e1\_ipc.png} con los tres núcleos y responder la pregunta guía.}
 
@@ -346,14 +352,14 @@ $1/S(p) = f + (1-f)/p$ sobre todas las mediciones de un mismo $N$
 \hline
 $N$ & $p$ & \textbf{Ciclos} & $S(p)$ & $E(p)$ & $e(p)$ &
 \textbf{F.\ L1D} & \textbf{F.\ L2} \\ \hline
-64  & 1 & \num{2359776} & $1{,}000$ & $1{,}000$ & ---      & 0          & 3  \\ \hline
-64  & 2 & \num{1181240} & $1{,}998$ & $0{,}999$ & $0{,}0011$ & 693        & 6  \\ \hline
-64  & 4 & \num{590950}  & $3{,}993$ & $0{,}998$ & $0{,}0006$ & \num{1419} & 12 \\ \hline
-64  & 8 & \num{295836}  & $7{,}977$ & $0{,}997$ & $0{,}0004$ & \num{2635} & 29 \\ \hline
-128 & 1 & \num{18899490} & $1{,}000$ & $1{,}000$ & ---      & \num{32026} & 3  \\ \hline
-128 & 2 & \num{9450225}  & $2{,}000$ & $1{,}000$ & $0{,}0001$ & \num{23913} & 6  \\ \hline
-128 & 4 & \num{4726567}  & $3{,}999$ & $1{,}000$ & $0{,}0001$ & \num{27548} & 12 \\ \hline
-128 & 8 & \num{2363496}  & $7{,}996$ & $1{,}000$ & $0{,}0001$ & \num{26940} & 24 \\ \hline
+64  & 1 & \num{2359783} & $1{,}000$ & $1{,}000$ & ---      & 0          & 3  \\ \hline
+64  & 2 & \num{1181221} & $1{,}998$ & $0{,}999$ & $0{,}0011$ & 684        & 6  \\ \hline
+64  & 4 & \num{591053}  & $3{,}993$ & $0{,}998$ & $0{,}0006$ & \num{1421} & 12 \\ \hline
+64  & 8 & \num{295833}  & $7{,}977$ & $0{,}997$ & $0{,}0004$ & \num{2644} & 24 \\ \hline
+128 & 1 & \num{18899513} & $1{,}000$ & $1{,}000$ & ---      & \num{32021} & 3  \\ \hline
+128 & 2 & \num{9450227}  & $2{,}000$ & $1{,}000$ & $0{,}00005$ & \num{23894} & 6  \\ \hline
+128 & 4 & \num{4726561}  & $3{,}999$ & $1{,}000$ & $0{,}0001$ & \num{27473} & 12 \\ \hline
+128 & 8 & \num{2363489}  & $7{,}996$ & $1{,}000$ & $0{,}0001$ & \num{25948} & 24 \\ \hline
 \end{tabular}
 \end{table}
 
@@ -362,7 +368,7 @@ La Tabla~\ref{tab:e4} y la Fig.~\ref{fig:e4speedup} muestran un
 $7{,}977\times$ para $N=64$ y $7{,}996\times$ para $N=128$, y la curva medida
 se superpone a la ideal. La eficiencia (Fig.~\ref{fig:e4eff}) no baja de
 $0{,}997$. El ajuste de Amdahl estima $f = 6\times10^{-4}$ para $N=64$ y
-$f = 1\times10^{-4}$ para $N=128$.
+$f = 8\times10^{-5}$ para $N=128$.
 
 \begin{figure}[ht]
   \centering
@@ -388,7 +394,7 @@ por cuatro propiedades de la carga y de la medición:
         $N/p$ filas completas de $C$ con exactamente el mismo número de
         operaciones, así que la carga está perfectamente balanceada. El
         total de instrucciones de la ROI apenas cambia con $p$: de
-        \num{14779706} con un núcleo a \num{14780556} con ocho para
+        \num{14779709} con un núcleo a \num{14780527} con ocho para
         $N=128$ ($+\SI{0{,}006}{\percent}$), diferencia que corresponde a
         las barreras.
   \item \textbf{Sin escrituras compartidas.} $A$ y $B$ solo se leen y
@@ -400,7 +406,7 @@ por cuatro propiedades de la carga y de la medición:
         matrices ocupan \SI{192}{KiB} con $N=128$, menos del
         \SI{10}{\percent} de la L2 de \SI{2}{MiB}, y quedaron en ella al
         inicializarlas. Por eso los fallos de L2 son despreciables (de
-        3 a 29) y crecen en unos 3 por núcleo, lo que es consistente
+        3 a 24) y crecen exactamente en 3 por núcleo, lo que es consistente
         con fallos obligatorios sobre los datos privados de cada hilo
         y no con contención por la memoria principal.
   \item \textbf{La ROI solo mide la parte paralela.} La creación de
@@ -421,7 +427,7 @@ frente al trabajo de cada núcleo, el costo es de a lo sumo el
 ligeramente por debajo de la de $N=128$, donde cada núcleo tiene ocho
 veces más trabajo para amortizar el mismo arranque en frío. Con
 $N=128$ ocurre lo contrario: los \SI{192}{KiB} no caben en una sola L1D
-y un núcleo sufre \num{32026} fallos de capacidad, pero repartidos entre
+y un núcleo sufre \num{32021} fallos de capacidad, pero repartidos entre
 $p$ núcleos el total se mantiene entre \num{24000} y \num{28000}, porque
 cada núcleo sigue recorriendo $B$ completa por cada fila.
 
@@ -432,21 +438,93 @@ cada núcleo sigue recorriendo $B$ completa por cada fila.
   \label{fig:e4l2}
 \end{figure}
 
+\subsection{Medición del programa completo}
+
+La ROI anterior responde cuánto escala el cálculo, pero deja fuera
+justamente lo que Amdahl penaliza. Por eso se repitió E4 en un segundo
+modo (\texttt{gemm\_omp N T full}, \texttt{MODE=full} en el script) en
+el que la ROI cubre el programa real completo: la inicialización de
+$A$, $B$ y $C$, que hace solo el hilo principal; la creación de los
+hilos; el cálculo, y la espera de todos los hilos. Solo la verificación
+queda fuera, porque no forma parte del trabajo útil.
+
+\begin{table}[h]
+\centering
+\caption{E4 midiendo el programa completo (O3 de ancho 2).}
+\label{tab:e4full}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{|c|c|r|c|c|c|}
+\hline
+$N$ & $p$ & \textbf{Ciclos} & $S(p)$ & $E(p)$ & $e(p)$ \\ \hline
+64  & 1 & \num{2430635}  & $1{,}000$ & $1{,}000$ & ---        \\ \hline
+64  & 2 & \num{1269371}  & $1{,}915$ & $0{,}957$ & $0{,}0445$ \\ \hline
+64  & 4 & \num{685462}   & $3{,}546$ & $0{,}887$ & $0{,}0427$ \\ \hline
+64  & 8 & \num{402391}   & $6{,}041$ & $0{,}755$ & $0{,}0463$ \\ \hline
+128 & 1 & \num{19174455} & $1{,}000$ & $1{,}000$ & ---        \\ \hline
+128 & 2 & \num{9744073}  & $1{,}968$ & $0{,}984$ & $0{,}0164$ \\ \hline
+128 & 4 & \num{5024841}  & $3{,}816$ & $0{,}954$ & $0{,}0161$ \\ \hline
+128 & 8 & \num{2674752}  & $7{,}169$ & $0{,}896$ & $0{,}0166$ \\ \hline
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:e4full} y la Fig.~\ref{fig:e4full} muestran que ahora
+la curva sí se separa de la ideal: con 8 núcleos el \textit{speedup} cae
+a $7{,}17\times$ para $N=128$ y a $6{,}04\times$ para $N=64$, y la
+eficiencia a $0{,}90$ y $0{,}76$. El ajuste de Amdahl da
+$f = 0{,}0164$ para $N=128$ y $f = 0{,}0447$ para $N=64$, es decir, un
+\textit{speedup} máximo de $1/f \approx 61\times$ y $22\times$.
+
+Dos observaciones permiten atribuir esa pérdida a código serial y no a
+contención entre núcleos:
+\begin{itemize}
+  \item \textbf{La métrica de Karp-Flatt es constante en $p$}
+        ($0{,}0161$ a $0{,}0166$ con $N=128$). Si la pérdida viniera de
+        sincronización, coherencia o competencia por la L2, $e(p)$
+        crecería con el número de núcleos; que se mantenga constante es
+        la firma de una fracción serial fija, exactamente el supuesto de
+        la ley de Amdahl.
+  \item \textbf{La fracción serial disminuye con $N$.} La inicialización
+        recorre $N^2$ elementos, mientras que el cálculo hace $N^3$
+        multiplicaciones y sumas; su peso relativo cae como $1/N$. Con un
+        núcleo, la diferencia entre ambos modos es de \num{70852} ciclos
+        (\SI{2,9}{\percent}) con $N=64$ y de \num{274942} ciclos
+        (\SI{1,4}{\percent}) con $N=128$. El resto de $f$ lo aporta la
+        creación de los hilos: el hilo principal ejecuta unas
+        \num{2700} instrucciones adicionales por cada hilo que crea.
+\end{itemize}
+Los fallos de L2 suben de decenas a miles (de \num{2339} a \num{3179}
+con $N=128$) porque la inicialización trae las matrices desde la
+memoria principal por primera vez; son fallos obligatorios del
+arranque, no un efecto del paralelismo.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\columnwidth]{fig/e4_full_speedup.png}
+  \caption{\textit{Speedup} midiendo el programa completo
+    (inicialización, creación de hilos, cálculo y espera).}
+  \label{fig:e4full}
+\end{figure}
+
 \subsection{Respuesta a la pregunta guía}
 
-Dentro de la ROI la ley de Amdahl estima una fracción serial de entre
-$10^{-4}$ y $6\times10^{-4}$: el cálculo de GEMM por filas es, a efectos
-prácticos, completamente paralelo, y el límite de Amdahl
-($S_{\max} = 1/f$) queda muy por encima de los 8 núcleos estudiados.
-Para el diseño de E6 esto significa que, mientras el conjunto de
-trabajo quepa en la L2 compartida, añadir núcleos convierte el
-presupuesto en rendimiento casi linealmente. Ese supuesto deja de valer
-para $N$ grandes: con $N=1024$ las matrices ocupan \SI{12}{MiB} y no
-caben en la L2, y los núcleos competirían por el ancho de banda de la
-memoria principal.
-\pendiente{decidir si se agrega una medición complementaria con la
-creación de hilos dentro de la ROI, que daría una fracción serial
-visible.}
+La fracción serial que estima Amdahl depende de qué se mide. Para el
+cálculo de GEMM por filas es de $8\times10^{-5}$ a $6\times10^{-4}$: el
+núcleo de cómputo es, a efectos prácticos, completamente paralelo. Para
+el programa completo es de \SI{1,6}{\percent} con $N=128$ y
+\SI{4,5}{\percent} con $N=64$, y proviene de la inicialización serial y
+de la creación de los hilos. Con $f = 0{,}0164$, 16 núcleos darían como
+máximo $S = 1/(f + (1-f)/16) \approx 12{,}8\times$ y 32 núcleos
+$\approx 21{,}2\times$: el rendimiento marginal de cada núcleo adicional
+cae, lo que E6 debe considerar al repartir el presupuesto.
+
+En la inferencia en el borde la inicialización ocurre una sola vez
+(los pesos de la capa se cargan al arrancar) y GEMM se repite en cada
+inferencia, de modo que el régimen relevante es el de la ROI de
+cálculo. Ese régimen se mantiene mientras el conjunto de trabajo quepa
+en la L2 compartida: con $N=1024$ las matrices ocupan \SI{12}{MiB}, no
+caben en la L2 de \SI{2}{MiB}, y los núcleos competirían por el ancho
+de banda de la memoria principal.
 
 % =====================================================================
 \section{E5: Coherencia de Memoria}
@@ -461,32 +539,55 @@ compartido? ¿Qué estado del protocolo genera el tráfico extra?}
 \section{E6: Exploración Bajo Presupuesto}
 \label{sec:e6}
 
-La Tabla~\ref{tab:e6} recoge las configuraciones evaluadas con
-$N=128$. Cada una se justifica con un resultado de E2--E5.
+\subsection{Metodología}
+
+Todas las configuraciones ejecutan \texttt{gemm\_omp\_sve} con $N=128$:
+el mismo reparto por filas de E4, pero con el kernel SVE de E3 dentro de
+cada hilo, de modo que el programa aprovecha a la vez los núcleos y la
+longitud vectorial por los que paga el modelo de costo. El ancho del O3
+se fija como en E2 y la VL con el parámetro \texttt{sve\_vl\_se}. Se
+reporta el tiempo de la ROI y el rendimiento en GFLOP/s
+($2N^3/t$) dividido por el costo. Cada configuración se agrega con una
+línea (\texttt{CONFIGS="núcleos:ancho:VL[:protocolo]"}) y las corridas se
+acumulan en \texttt{results/e6/}.
+
+\subsection{Resultados}
 
 \begin{table}[h]
 \centering
-\caption{Configuraciones de E6 (GEMM, $N = 128$).}
+\caption{Configuraciones de E6 (GEMM, $N = 128$, caches clásicas salvo
+  que se indique otro protocolo).}
 \label{tab:e6}
 \footnotesize
 \setlength{\tabcolsep}{2.5pt}
 \begin{tabular}{|c|c|c|c|c|c|c|}
 \hline
 \textbf{Núcl.} & $W$ & \textbf{VL} & \textbf{Prot.} & \textbf{Costo} &
-\textbf{Tiempo} & \textbf{Rend./costo} \\ \hline
-8  & 2 & 128 & \pendiente{} & 16 & & \\ \hline
-16 & 2 & 128 & \pendiente{} & 32 & & \\ \hline
+\textbf{Tiempo [ms]} & \textbf{GFLOP/s/costo} \\ \hline
+8  & 2 & 128 & clásico & 16 & $0{,}2751$ & $0{,}953$ \\ \hline
+16 & 2 & 128 & clásico & 32 & $0{,}1380$ & $0{,}950$ \\ \hline
 \multicolumn{7}{|c|}{\pendiente{otras 4 configuraciones como mínimo}} \\ \hline
 \end{tabular}
 \end{table}
 
-Las dos primeras filas exploran la estrategia de muchos núcleos
-simples que sugiere E4: con 8 núcleos de ancho 2 y VL de 128 bits se
-gasta la mitad del presupuesto, y con 16 se gasta completo. Según
-\eqref{eq:costo}, un núcleo de ancho 2 y VL de 128 bits cuesta 2
-unidades, el mínimo posible con SVE.
-\pendiente{resultados, configuración recomendada por tiempo y por
-rendimiento/costo, y análisis de sensibilidad con $N = 1024$ y
+Las dos primeras filas exploran la estrategia de muchos núcleos simples
+que sugiere E4: núcleos de ancho 2 y VL de 128 bits, que cuestan 2
+unidades cada uno, de modo que con 8 se gasta la mitad del presupuesto y
+con 16 el presupuesto completo. Duplicar los núcleos reduce el tiempo
+de \SI{0,2751}{ms} a \SI{0,1380}{ms}, un factor de $1{,}994$: la
+escalabilidad casi lineal de E4 se mantiene con el kernel vectorial y
+con 16 hilos de solo 8 filas cada uno. Por eso el rendimiento por unidad
+de costo es prácticamente el mismo ($0{,}953$ frente a $0{,}950$
+GFLOP/s por unidad): con $N=128$, gastar el presupuesto en núcleos
+simples convierte cada unidad de costo en rendimiento sin pérdidas
+apreciables. Los fallos de L2 siguen siendo despreciables (32 y 61).
+
+El kernel SVE también se nota frente a E4: con 8 núcleos de ancho 2, la
+versión con VL de 128 bits termina en \num{550102} ciclos frente a
+\num{2363489} de la escalar ($4{,}3\times$), y ejecuta
+\num{6.41e6} instrucciones en lugar de \num{14.78e6}.
+\pendiente{configuración recomendada por tiempo y por rendimiento/costo
+cuando estén las 6, y análisis de sensibilidad con $N = 1024$ y
 presupuesto de 16.}
 
 % =====================================================================

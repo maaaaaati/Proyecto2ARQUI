@@ -1,3 +1,23 @@
+# Binarios compilados
+src/hola
+src/gemm_scalar
+src/gemm_sve
+src/gemm_omp
+src/false_sharing
+*.o
+# Salidas de gem5 (solo se suben los CSV)
+m5out/
+results/**/m5out/
+results/**/*.ini
+results/**/*.json
+bin/
+results/**/config.dot*
+# Archivos basura de Windows
+*:Zone.Identifier
+__pycache__/
+results/**/fs/
+results/**/citations.bib
+
 # Archivos auxiliares de LaTeX (se regeneran al compilar)
 *.aux
 *.log
@@ -10,3 +30,5 @@
 *.run.xml
 *.out
 *.toc
+# ...pero los sim.log de gem5 si se versionan (son parte de los datos crudos)
+!results/**/sim.log
