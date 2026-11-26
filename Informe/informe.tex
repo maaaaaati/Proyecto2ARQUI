@@ -14,6 +14,8 @@
 \usepackage{graphicx}
 \usepackage[justification=centering]{caption}
 \usepackage{amsmath,amssymb}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage{siunitx}
 \sisetup{output-decimal-marker={,}, group-separator={\,}, group-minimum-digits=4,
   per-mode=symbol, range-phrase={~a~}, range-units=single}
@@ -262,57 +264,264 @@ fijan únicamente los cinco anchos que lista el enunciado
 \section{E1: Línea Base de un Núcleo}
 \label{sec:e1}
 
-E1 compara tres modelos de núcleo ejecutando \texttt{gemm\_scalar}:
-TimingSimple, que ejecuta una instrucción a la vez y se detiene en cada
-acceso a memoria; Minor, segmentado en orden, y O3, fuera de orden.
+Se compararon tres modelos de CPU de gem5 ejecutando
+\texttt{gemm\_scalar}: TimingSimple, que procesa las instrucciones
+sin solapamiento; Minor, que utiliza una tubería segmentada con
+ejecución en orden; y O3, que permite ejecución fuera de orden.
+Para cada núcleo se evaluaron matrices de orden $N=64$ y $N=128$,
+considerando únicamente las estadísticas de la región de interés
+(ROI). La Tabla~\ref{tab:e1} presenta los resultados obtenidos.
 
-\begin{table}[h]
+\begin{table}[!t]
 \centering
-\caption{Resultados de E1 (ROI).}
+\caption{Resultados de E1 medidos en la ROI.}
 \label{tab:e1}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{|l|c|r|c|c|c|}
+\begin{tabular}{|l|c|r|c|c|r|}
 \hline
-\textbf{Núcleo} & $N$ & \textbf{Ciclos} & \textbf{IPC} & \textbf{CPI} &
-\textbf{Fallos L1D} \\ \hline
-TimingSimple & 64  & \num{5317804}  & $0{,}351$ & $2{,}85$ & 0 \\ \hline
-TimingSimple & 128 & \num{42529240} & $0{,}348$ & $2{,}87$ & \num{12047} \\ \hline
-Minor        & 64  & \pendiente{} & & & \\ \hline
-Minor        & 128 & \pendiente{} & & & \\ \hline
-O3           & 64  & \pendiente{} & & & \\ \hline
-O3           & 128 & \pendiente{} & & & \\ \hline
+\textbf{CPU} & $N$ & \textbf{Ciclos} &
+\textbf{IPC} & \textbf{CPI} & \textbf{Fallos L1D} \\ \hline
+TimingSimple & 64  & \num{5317804}  & $0{,}3513$ & $2{,}8464$ & 0 \\ \hline
+Minor        & 64  & \num{2704729}  & $0{,}6877$ & $1{,}4541$ & 0 \\ \hline
+O3           & 64  & \num{2352053}  & $0{,}7908$ & $1{,}2645$ & 0 \\ \hline
+TimingSimple & 128 & \num{42529240} & $0{,}3483$ & $2{,}8713$ &
+\num{12047} \\ \hline
+Minor        & 128 & \num{21877060} & $0{,}6756$ & $1{,}4802$ &
+\num{31283} \\ \hline
+O3           & 128 & \num{18887655} & $0{,}7825$ & $1{,}2780$ &
+\num{96731} \\ \hline
 \end{tabular}
 \end{table}
 
-El IPC de TimingSimple, cercano a $0{,}35$, es prácticamente independiente
-de $N$: este modelo no solapa nada, de modo que cada instrucción paga
-completa la latencia de su búsqueda en la caché de instrucciones y, si
-es una carga o un almacenamiento ---el \SI{43}{\percent} de las
-instrucciones de la ROI---, también la del acceso a datos. Con $N=64$
-las tres matrices ocupan \SI{48}{KiB}, caben en la L1D de \SI{64}{KiB} y
-ya están en ella desde la inicialización, por lo que la ROI no registra
-ningún fallo de L1D. Con $N=128$ ocupan \SI{192}{KiB}; los fallos
-aparecen pero su tasa es de solo \SI{0,19}{\percent}, porque el orden
-$i$-$k$-$j$ recorre las filas con paso unitario y aprovecha cada línea
-de \SI{64}{B} completa, y la L2 los resuelve casi todos (2 fallos de
-L2).
+\begin{figure}[!t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    width=\columnwidth,
+    height=5.0cm,
+    ymin=0,
+    ymax=0.9,
+    ylabel={IPC},
+    symbolic x coords={TimingSimple,Minor,O3},
+    xtick=data,
+    xticklabel style={font=\scriptsize},
+    ylabel style={font=\footnotesize},
+    tick label style={font=\scriptsize},
+    bar width=9pt,
+    enlarge x limits=0.22,
+    legend style={
+        font=\scriptsize,
+        at={(0.5,1.02)},
+        anchor=south,
+        legend columns=2,
+        draw=none
+    },
+    grid=major,
+    ymajorgrids=true,
+    xmajorgrids=false
+]
+\addplot coordinates {
+    (TimingSimple,0.351316)
+    (Minor,0.687724)
+    (O3,0.790842)
+};
+\addplot coordinates {
+    (TimingSimple,0.348279)
+    (Minor,0.675566)
+    (O3,0.782490)
+};
+\legend{$N=64$,$N=128$}
+\end{axis}
+\end{tikzpicture}
+\caption{IPC de los tres modelos de CPU para ambos tamaños de matriz.}
+\label{fig:e1_ipc}
+\end{figure}
 
-Como referencia preliminar, un solo núcleo O3 de ancho 2 (corrida de
-un núcleo de E4, prácticamente las mismas instrucciones) necesita
-\num{18899513} ciclos con $N=128$: $2{,}25$ veces menos que TimingSimple.
-\pendiente{completar con Minor y O3 por defecto, añadir el gráfico
-\texttt{e1\_ipc.png} con los tres núcleos y responder la pregunta guía.}
+La Figura~\ref{fig:e1_ipc} evidencia que el rendimiento depende
+principalmente del modelo de ejecución. Para $N=128$, TimingSimple
+alcanza un IPC de $0{,}3483$, mientras que Minor llega a $0{,}6756$
+y O3 a $0{,}7825$. La segmentación de Minor permite solapar etapas
+de distintas instrucciones, pero mantiene restricciones propias de
+la ejecución en orden. O3 puede aprovechar adicionalmente el
+paralelismo a nivel de instrucción al ejecutar instrucciones
+independientes mientras otras esperan por sus operandos o por
+accesos a memoria.
+
+Tomando como referencia los ciclos de TimingSimple, Minor obtiene
+una aceleración de $1{,}97\times$ para $N=64$ y $1{,}94\times$
+para $N=128$; O3 alcanza $2{,}26\times$ y $2{,}25\times$,
+respectivamente. Frente a Minor, O3 reduce los ciclos
+aproximadamente entre \SI{13}{\percent} y \SI{14}{\percent} en ambos tamaños. Por tanto,
+la ejecución fuera de orden aporta una mejora adicional, aunque
+menor que la obtenida inicialmente al pasar de un núcleo sin
+solapamiento a uno segmentado.
+
+El IPC de cada modelo cambia poco al duplicar $N$, pese a que
+la cantidad de datos aumenta. Para $N=64$, las tres matrices
+ocupan \SI{48}{KiB}, por debajo de la capacidad nominal de la
+L1D de \SI{64}{KiB}, y no se registraron fallos de L1D durante
+la ROI. Para $N=128$, su tamaño conjunto aumenta a
+\SI{192}{KiB} y aparecen fallos en los tres modelos. El
+recorrido $i$-$k$-$j$ favorece la localidad espacial al acceder
+secuencialmente a las filas; sin embargo, la capacidad de
+ocultar latencias y el patrón temporal de solicitudes dependen
+del núcleo. Por ello, el mayor número de fallos L1D observado
+en O3 no implica, por sí solo, un rendimiento inferior: sus
+ciclos totales siguen siendo los menores.
+
+En síntesis, E1 muestra que el núcleo fuera de orden aprovecha
+mejor el paralelismo disponible en GEMM escalar. No obstante,
+su IPC permanece por debajo de una instrucción por ciclo en
+estas condiciones, lo que indica que todavía existen
+limitaciones asociadas con dependencias, latencias y recursos
+microarquitectónicos. El experimento E2 examina si ampliar el
+ancho del núcleo y su ventana de reordenamiento permite
+superar dichas restricciones.
 
 % =====================================================================
+
 \section{E2: Núcleo Superescalar}
-\label{sec:e2}
 
-\pendiente{Integrante 1. Barrido de ancho 1, 2, 4, 8 y ROB 32, 64, 192;
-IPC, ocupación de IQ y ROB, fallos de predicción. ¿Dónde se satura el
-IPC y por qué?}
+Se evaluó el efecto del ancho del procesador y la capacidad
+del búfer de reordenamiento (ROB) sobre el rendimiento de
+\texttt{O3CPU}. Se ejecutó GEMM con $N=128$ para cuatro
+anchos ($W=1,2,4,8$) y tres capacidades del ROB
+($32$, $64$ y $192$ entradas), obteniendo doce
+configuraciones. El IPC se calculó sobre la región
+de interés (ROI).
 
-% =====================================================================
+\begin{table}[!ht]
+\centering
+\caption{IPC de O3CPU para diferentes anchos y tamaños del ROB.}
+\label{tab:e2_ipc}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{c|ccc}
+\hline
+\textbf{Ancho} & \multicolumn{3}{c}{\textbf{Entradas del ROB}}\\
+$W$ & 32 & 64 & 192\\
+\hline
+1 & 0{,}772542 & 0{,}772751 & 0{,}773118\\
+2 & 0{,}789371 & 0{,}781973 & 0{,}782002\\
+4 & 0{,}781928 & 0{,}781974 & 0{,}782490\\
+8 & 0{,}789612 & 0{,}782015 & 0{,}782490\\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=5.1cm,
+    xlabel={Ancho del procesador},
+    ylabel={IPC},
+    xmin=0.7, xmax=8.3,
+    ymin=0.768, ymax=0.793,
+    xtick={1,2,4,8},
+    grid=major,
+    grid style={gray!20},
+    legend style={
+        font=\scriptsize,
+        at={(0.5,-0.28)},
+        anchor=north,
+        legend columns=3
+    },
+    tick label style={font=\scriptsize},
+    label style={font=\small}
+]
+\addplot+[mark=square*,thick]
+coordinates {
+    (1,0.772542)
+    (2,0.789371)
+    (4,0.781928)
+    (8,0.789612)
+};
+\addlegendentry{ROB 32}
+
+\addplot+[mark=triangle*,thick]
+coordinates {
+    (1,0.772751)
+    (2,0.781973)
+    (4,0.781974)
+    (8,0.782015)
+};
+\addlegendentry{ROB 64}
+
+\addplot+[mark=*,thick]
+coordinates {
+    (1,0.773118)
+    (2,0.782002)
+    (4,0.782490)
+    (8,0.782490)
+};
+\addlegendentry{ROB 192}
+\end{axis}
+\end{tikzpicture}
+\caption{Variación del IPC con el ancho y la capacidad
+del ROB para GEMM con $N=128$.}
+\label{fig:e2_ipc}
+\end{figure}
+
+\subsection{Efecto del ancho y del ROB}
+
+La Tabla~\ref{tab:e2_ipc} y la
+Fig.~\ref{fig:e2_ipc} muestran que ampliar el ancho
+no produce un incremento proporcional del IPC.
+Con ROB de 192 entradas, el IPC aumenta de
+$0{,}773118$ para $W=1$ a $0{,}782490$ para $W=4$,
+lo que representa una mejora del $1{,}21$\,\%.
+Al incrementar el ancho de cuatro a ocho,
+el IPC permanece en $0{,}782490$, evidenciando
+saturación del rendimiento medido.
+
+El mayor IPC observado fue $0{,}789612$,
+correspondiente a $W=8$ y ROB de 32 entradas.
+Sin embargo, la configuración $W=2$ con el mismo
+ROB alcanzó $0{,}789371$, una diferencia relativa
+de apenas $0{,}031$\,\%. Por tanto, el mayor ancho
+no proporciona una ventaja sustancial en este caso.
+Asimismo, aumentar la capacidad del ROB no
+garantiza una mejora monotónica del rendimiento.
+
+\subsection{Restricciones microarquitectónicas}
+
+Los contadores de gem5 permiten examinar la presión
+sobre las estructuras internas. Con ROB de 32
+entradas, los eventos
+\texttt{rename.ROBFullEvents} aumentaron de
+649 para $W=1$ a 5\,206\,799 para $W=8$.
+Esto evidencia una mayor frecuencia de condiciones
+de ROB lleno al incrementar el ancho.
+
+Con ROB de 192 entradas, el contador
+\texttt{rename.IQFullEvents} registró cuatro
+eventos para $W=4$ y 117\,822 para $W=8$.
+El incremento es compatible con una mayor
+presión sobre la cola de instrucciones, pese
+a que el IPC no aumenta. Los contadores
+ausentes en determinadas configuraciones
+no se interpretaron como valores nulos.
+
+Los fallos de predicción de saltos se mantuvieron
+aproximadamente entre 16\,518 y 16\,524 eventos
+en las configuraciones analizadas. Por ello,
+no se observa un aumento sistemático de este
+contador que explique las diferencias de IPC.
+
+En conjunto, los resultados indican que la
+ampliación del ancho y del ROB presenta
+rendimientos decrecientes para esta carga.
+La disponibilidad de instrucciones independientes,
+las dependencias de datos y las restricciones
+de las estructuras internas pueden limitar
+el paralelismo aprovechable. Los eventos de
+saturación respaldan esta interpretación,
+aunque no permiten atribuir el límite de
+rendimiento a una única causa.
+
 \section{E3: Extensión Vectorial SVE}
 \label{sec:e3}
 

@@ -1,0 +1,1 @@
+/home/mzelaya/gem5/build/ARM_MESI/gem5.opt -d /home/mzelaya/Documentos/Arquitectura/Proyecto_2/Proyecto2ARQUI/results/e1/minor_n128 /home/mzelaya/gem5/configs/deprecated/example/se.py --cpu-type=ArmMinorCPU --caches --l2cache -c /home/mzelaya/Documentos/Arquitectura/Proyecto_2/Proyecto2ARQUI/bin/gem5/gemm_scalar -o 128

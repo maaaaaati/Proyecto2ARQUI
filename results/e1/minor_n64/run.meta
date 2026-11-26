@@ -1,0 +1,6 @@
+# generado por run_e1.sh el 2026-11-25T19:54:27-06:00
+variant=ARM_MESI
+exp=e1
+cpu=minor
+n=64
+cores=1
