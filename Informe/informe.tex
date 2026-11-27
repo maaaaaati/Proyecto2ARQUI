@@ -243,7 +243,8 @@ Cada experimento se regenera con un solo comando
 los \texttt{stats.txt} en un CSV y produce los gráficos. Los
 \texttt{stats.txt} crudos, los CSV y los gráficos están versionados en
 \texttt{results/}, y el \texttt{README} del repositorio documenta la
-instalación y la reproducción. \pendiente{enlace al repositorio.}
+instalación y la reproducción. 
+Enlace: https://github.com/maaaaaati/Proyecto2ARQUI.git
 
 \subsection{Limitación encontrada en el núcleo O3}
 
@@ -692,9 +693,173 @@ de banda de la memoria principal.
 invalidaciones, mensajes y latencia de fallo. ¿Cuánto cuesta el falso
 compartido? ¿Qué estado del protocolo genera el tráfico extra?}
 
-% =====================================================================
+% ===================== E6 =====================
+
 \section{E6: Exploración Bajo Presupuesto}
 \label{sec:e6}
+
+\subsection{Metodología}
+
+Todas las configuraciones ejecutan \texttt{gemm\_omp\_sve}: el mismo
+reparto por filas de E4, pero con el kernel SVE de E3 dentro de cada
+hilo, de modo que el programa aprovecha a la vez los núcleos y la
+longitud vectorial por los que paga el modelo de costo. El ancho del O3
+se fija como en E2 y la VL con el parámetro \texttt{sve\_vl\_se}. Se
+reporta el tiempo de la ROI y el rendimiento en GFLOP/s ($2N^3/t$)
+dividido por el costo. Cada configuración se agrega con una línea
+(\texttt{CONFIGS="núcleos:ancho:VL[:protocolo]"}) y las corridas se
+acumulan en \texttt{results/e6/}. Se evaluaron diez configuraciones con
+$N=128$ y, para la sensibilidad al tamaño, tres de ellas con $N=256$
+(\texttt{results/e6\_n256/}).
+
+Cada configuración responde a un resultado previo: muchos núcleos
+simples (E4 mostró escalabilidad casi lineal), VL largo con pocos
+núcleos (E3 mostró que alargar VL rinde más por unidad de costo que
+agregar núcleos), y variaciones del ancho con VL largo (E2 mostró que
+el ancho no ayuda al código escalar, pero el kernel SVE tiene otro
+perfil de dependencias).
+
+\subsection{Resultados}
+
+\begin{table}[!t]
+\centering
+\caption{Configuraciones de E6 con $N = 128$ (caches clásicas),
+ordenadas por tiempo.}
+\label{tab:e6}
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+\textbf{Núc.} & $W$ & \textbf{VL} & \textbf{Costo} &
+\textbf{$t$ [ms]} & \textbf{GFLOP/s} & \textbf{GF/s/costo} \\ \hline
+4  & 4 & 512  & 24 & $0{,}1032$ & $40{,}6$ & $1{,}693$ \\ \hline
+2  & 8 & 1024 & 24 & $0{,}1082$ & $38{,}8$ & $1{,}616$ \\ \hline
+2  & 4 & 1024 & 20 & $0{,}1082$ & $38{,}8$ & $1{,}938$ \\ \hline
+16 & 2 & 128  & 32 & $0{,}1380$ & $30{,}4$ & $0{,}950$ \\ \hline
+4  & 2 & 512  & 20 & $0{,}1403$ & $29{,}9$ & $1{,}495$ \\ \hline
+2  & 2 & 1024 & 18 & $0{,}1491$ & $28{,}1$ & $1{,}563$ \\ \hline
+1  & 4 & 1024 & 10 & $0{,}2155$ & $19{,}5$ & $1{,}946$ \\ \hline
+1  & 8 & 1024 & 12 & $0{,}2156$ & $19{,}5$ & $1{,}621$ \\ \hline
+8  & 2 & 128  & 16 & $0{,}2751$ & $15{,}2$ & $0{,}953$ \\ \hline
+1  & 2 & 1024 & 9  & $0{,}2973$ & $14{,}1$ & $1{,}567$ \\ \hline
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:e6} resume las diez configuraciones, todas con costo
+menor o igual que 32.
+
+\textbf{Muchos núcleos simples.} Las filas de 8 y 16 núcleos de ancho 2
+y VL de 128 bits exploran la estrategia que sugiere E4: cada núcleo
+cuesta 2 unidades. Duplicar los núcleos reduce el tiempo de
+\SI{0,2751}{ms} a \SI{0,1380}{ms}, un factor de $1{,}994$: la
+escalabilidad casi lineal de E4 se mantiene con el kernel vectorial y
+con 16 hilos de solo 8 filas cada uno. Por eso el rendimiento por unidad
+de costo es prácticamente el mismo ($0{,}953$ frente a $0{,}950$). El
+kernel SVE también se nota frente a E4: con 8 núcleos de ancho 2, la
+versión con VL de 128 bits termina en \num{550102} ciclos frente a
+\num{2363489} de la escalar ($4{,}3\times$).
+
+\textbf{Pocos núcleos con VL largo.} Con dos núcleos de ancho 4 y VL de
+1024 bits (costo 20), GEMM termina en \SI{0,1082}{ms}: $1{,}27\times$ más rápido que con 16
+núcleos simples, con un $37{,}5$\,\% menos de costo. Su rendimiento por unidad de costo
+($1{,}94$) duplica el de los núcleos simples ($0{,}95$). Esto confirma
+la predicción de E3: cada unidad de costo invertida en VL rinde más que
+una invertida en núcleos de VL corto, porque un vector de 1024 bits
+procesa 32 elementos con las mismas 12 instrucciones por iteración
+del bucle que uno de 128 bits.
+
+\textbf{Efecto del ancho.} A diferencia de E2, con el kernel SVE el
+ancho sí importa, pero solo hasta 4. Con VL de 1024 bits, pasar de
+ancho 2 a 4 reduce el tiempo un $27{,}5$\,\% con un núcleo
+(\SI{0,2973}{ms} a \SI{0,2155}{ms}) y un $27{,}4$\,\% con dos
+(\SI{0,1491}{ms} a \SI{0,1082}{ms}), mientras que pasar de 4 a 8 no
+cambia el tiempo (diferencias menores que \SI{0,1}{\percent}). El IPC
+por núcleo se mantiene en $2{,}09$ con ancho 4 y 8, de modo que a
+partir de ancho 4 el límite son las dependencias del bucle (carga,
+multiplicación-suma y almacenamiento de la misma fila de $C$) y no el
+número de instrucciones que el núcleo puede emitir. El ancho 8 solo
+agrega costo.
+
+\textbf{Núcleos con VL largo.} Con ancho 4 y VL de 1024 bits, pasar de
+uno a dos núcleos reduce el tiempo $1{,}99\times$: el reparto por filas
+sigue escalando casi linealmente con el kernel vectorial.
+
+\subsection{Configuración recomendada}
+
+\begin{itemize}
+  \item \textbf{Menor tiempo:} 4 núcleos, ancho 4 y VL de 512 bits
+    (costo 24), con \SI{0,1032}{ms}.
+  \item \textbf{Mejor rendimiento por costo:} 1 núcleo, ancho 4 y VL de
+    1024 bits (costo 10) y 2 núcleos con la misma configuración
+    (costo 20) empatan ($1{,}946$ y $1{,}938$ GFLOP/s por unidad).
+\end{itemize}
+
+Se recomienda \textbf{2 núcleos, ancho 4 y VL de 1024 bits (costo 20)}.
+Queda a un $4{,}9$\,\% de la configuración más rápida con un
+$17$\,\% menos de costo, comparte el mejor rendimiento por unidad de
+costo y deja 12 unidades del presupuesto sin usar. Si el único criterio
+es el tiempo de GEMM con $N=128$, como plantea la pregunta del
+proyecto, la respuesta estricta es 4 núcleos, ancho 4 y VL de 512 bits.
+
+\subsection{Análisis de sensibilidad}
+
+\textbf{Presupuesto de 16.} Con costo menor o igual que 16 quedan cuatro
+de las configuraciones evaluadas. La mejor es 1 núcleo, ancho 4 y VL de
+1024 bits (costo 10, \SI{0,2155}{ms}), que es $1{,}28\times$ más rápida
+que 8 núcleos simples (costo 16, \SI{0,2751}{ms}) y usa 6 unidades
+menos. Con un presupuesto ajustado, la conclusión se mantiene: conviene
+gastar en VL y en ancho 4 antes que en núcleos. Combinaciones de costo
+intermedio como 2 núcleos, ancho 4 y VL de 512 bits (costo 12) no se
+evaluaron y podrían mejorar este resultado.
+
+\begin{table}[!t]
+\centering
+\caption{Sensibilidad al tamaño: tres configuraciones con $N = 256$.}
+\label{tab:e6_n256}
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+\textbf{Núc.} & $W$ & \textbf{VL} & \textbf{Costo} &
+\textbf{$t$ [ms]} & \textbf{GFLOP/s} & \textbf{Fallos L1D} \\ \hline
+16 & 2 & 128  & 32 & $1{,}1301$ & $29{,}7$ & $33{,}0$\,\% \\ \hline
+2  & 4 & 1024 & 20 & $1{,}6109$ & $20{,}8$ & $26{,}6$\,\% \\ \hline
+8  & 2 & 128  & 16 & $2{,}1614$ & $15{,}5$ & $30{,}8$\,\% \\ \hline
+\end{tabular}
+\end{table}
+
+\textbf{Tamaño de la matriz.} Simular $N=1024$ requiere 512 veces el
+trabajo de $N=128$ y no fue viable en el tiempo del proyecto, por lo que
+se midió $N=256$ (Tabla~\ref{tab:e6_n256}) para identificar la
+tendencia. El orden se invierte: con $N=256$, los 16 núcleos simples
+son $1{,}43\times$ más rápidos que la configuración recomendada. Los
+núcleos simples mantienen su rendimiento ($30{,}4$ a $29{,}7$ GFLOP/s
+con 16 núcleos y $15{,}2$ a $15{,}5$ con 8), mientras que la de 2 núcleos
+con VL de 1024 bits cae de $38{,}8$ a $20{,}8$ GFLOP/s ($-46$\,\%): su
+tiempo crece $14{,}9\times$ cuando el trabajo crece $8\times$.
+
+La causa es la memoria. Con $N=256$ las tres matrices ocupan
+\SI{768}{KiB}, doce veces la L1D, y la tasa de fallos de L1D pasa de
+cerca del 3\,\% al 27--33\,\% en todas las configuraciones. Los fallos de
+L2 siguen siendo despreciables (8 a 50), así que los datos se sirven
+desde la L2 de \SI{2}{MiB}. Con 16 núcleos hay 16 L1D privadas y 16
+flujos de fallos que se atienden en paralelo; con 2 núcleos, cada fallo
+detiene a una fracción mayor de la máquina y cada acceso de 1024 bits
+abarca dos líneas, como se vio en E3. El IPC por núcleo de la
+configuración recomendada baja de $2{,}08$ a $1{,}05$. Aun así sigue
+teniendo el mejor rendimiento por unidad de costo ($1{,}04$ frente a
+$0{,}93$ y $0{,}97$), aunque la ventaja se reduce de $2{,}0\times$ a
+$1{,}1\times$.
+
+Con $N=1024$ las matrices ocupan \SI{12}{MiB} y superan también la
+L2, de modo que el acceso a DRAM dominaría. Por extrapolación de la
+tendencia medida, las configuraciones con pocos núcleos y VL largo
+perderían aún más frente a las de muchos núcleos, y la recomendación se
+desplazaría hacia más núcleos. Para ese tamaño, más que cambiar la
+configuración, convendría reorganizar el algoritmo con bloqueo por
+caché \cite{goto2008} para que cada bloque quepa en la L1D, lo que
+devolvería a GEMM al régimen de $N=128$ donde el VL largo es la mejor
+inversión.
 
 \subsection{Metodología}
 
