@@ -1,0 +1,1 @@
+/home/mzelaya/gem5/build/ARM_MESI/gem5.opt -d /home/mzelaya/Documentos/Arquitectura/Proyecto_2/Proyecto2ARQUI/results/e1/o3_n64 /home/mzelaya/gem5/configs/deprecated/example/se.py --cpu-type=ArmO3CPU --caches --l2cache -c /home/mzelaya/Documentos/Arquitectura/Proyecto_2/Proyecto2ARQUI/bin/gem5/gemm_scalar -o 64
