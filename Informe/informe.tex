@@ -1070,57 +1070,6 @@ caché \cite{goto2008} para que cada bloque quepa en la L1D, lo que
 devolvería a GEMM al régimen de $N=128$ donde el VL largo es la mejor
 inversión.
 
-\subsection{Metodología}
-
-Todas las configuraciones ejecutan \texttt{gemm\_omp\_sve} con $N=128$:
-el mismo reparto por filas de E4, pero con el kernel SVE de E3 dentro de
-cada hilo, de modo que el programa aprovecha a la vez los núcleos y la
-longitud vectorial por los que paga el modelo de costo. El ancho del O3
-se fija como en E2 y la VL con el parámetro \texttt{sve\_vl\_se}. Se
-reporta el tiempo de la ROI y el rendimiento en GFLOP/s
-($2N^3/t$) dividido por el costo. Cada configuración se agrega con una
-línea (\texttt{CONFIGS="núcleos:ancho:VL[:protocolo]"}) y las corridas se
-acumulan en \texttt{results/e6/}.
-
-\subsection{Resultados}
-
-\begin{table}[h]
-\centering
-\caption{Configuraciones de E6 (GEMM, $N = 128$, caches clásicas salvo
-  que se indique otro protocolo).}
-\label{tab:e6}
-\footnotesize
-\setlength{\tabcolsep}{2.5pt}
-\begin{tabular}{|c|c|c|c|c|c|c|}
-\hline
-\textbf{Núcl.} & $W$ & \textbf{VL} & \textbf{Prot.} & \textbf{Costo} &
-\textbf{Tiempo [ms]} & \textbf{GFLOP/s/costo} \\ \hline
-8  & 2 & 128 & clásico & 16 & $0{,}2751$ & $0{,}953$ \\ \hline
-16 & 2 & 128 & clásico & 32 & $0{,}1380$ & $0{,}950$ \\ \hline
-\multicolumn{7}{|c|}{\pendiente{otras 4 configuraciones como mínimo}} \\ \hline
-\end{tabular}
-\end{table}
-
-Las dos primeras filas exploran la estrategia de muchos núcleos simples
-que sugiere E4: núcleos de ancho 2 y VL de 128 bits, que cuestan 2
-unidades cada uno, de modo que con 8 se gasta la mitad del presupuesto y
-con 16 el presupuesto completo. Duplicar los núcleos reduce el tiempo
-de \SI{0,2751}{ms} a \SI{0,1380}{ms}, un factor de $1{,}994$: la
-escalabilidad casi lineal de E4 se mantiene con el kernel vectorial y
-con 16 hilos de solo 8 filas cada uno. Por eso el rendimiento por unidad
-de costo es prácticamente el mismo ($0{,}953$ frente a $0{,}950$
-GFLOP/s por unidad): con $N=128$, gastar el presupuesto en núcleos
-simples convierte cada unidad de costo en rendimiento sin pérdidas
-apreciables. Los fallos de L2 siguen siendo despreciables (32 y 61).
-
-El kernel SVE también se nota frente a E4: con 8 núcleos de ancho 2, la
-versión con VL de 128 bits termina en \num{550102} ciclos frente a
-\num{2363489} de la escalar ($4{,}3\times$), y ejecuta
-\num{6.41e6} instrucciones en lugar de \num{14.78e6}.
-\pendiente{configuración recomendada por tiempo y por rendimiento/costo
-cuando estén las 6, y análisis de sensibilidad con $N = 1024$ y
-presupuesto de 16.}
-
 % =====================================================================
 \section{Conclusiones}
 \label{sec:conclusiones}
