@@ -1,0 +1,9 @@
+# generado por run_e3.sh el 2026-11-26T20:05:35-06:00
+variant=ARM_MESI
+exp=e3
+cpu=o3
+kernel=sve
+vl=256
+lanes=8
+n=128
+cores=1

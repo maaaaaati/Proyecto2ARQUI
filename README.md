@@ -47,6 +47,7 @@ Las corridas que ya tienen `stats.txt` se saltan (`FORCE=1` para repetirlas).
 | Experimento | Comando | Salida |
 |---|---|---|
 | E1 | `bash scripts/run_e1.sh` | `results/e1/e1.csv`, `results/e1/e1_ipc.png` |
+| E3 | `bash scripts/run_e3.sh` | `results/e3/e3.csv` (con speedup, speedup ideal = VL/32, eficiencia vectorial y reducción de instrucciones), `e3_speedup.png`, `e3_insts.png`, `e3_ipc.png` |
 | E4 | `bash scripts/run_e4.sh` | `results/e4/e4.csv` (con speedup, eficiencia, fracción serial), `e4_speedup.png`, `e4_efficiency.png`, `e4_l2_misses.png` |
 | E4, programa completo | `MODE=full bash scripts/run_e4.sh` | lo mismo en `results/e4_full/`: la ROI incluye la inicialización y la creación y espera de los hilos |
 | E6 | `bash scripts/run_e6.sh` | `results/e6/e6.csv` (con costo, tiempo, GFLOP/s y GFLOP/s por costo), `e6_time.png`, `e6_perf_cost.png` |
@@ -74,6 +75,7 @@ Variables opcionales para cualquier `run_eX.sh`: `JOBS=4` (simulaciones en paral
 | `scripts/parse_stats.py` | `stats.txt` → CSV. Usa solo el **bloque 1** (ROI); avisa y marca `roi_ok=0` si no hay ROI. `--extra REGEX` agrega stats específicas (p. ej. Ruby) |
 | `scripts/plot.py` | Gráfico de barras o líneas desde el CSV (`--x --y --hue --where --ideal --order`) |
 | `scripts/amdahl.py` | Agrega a un CSV speedup, eficiencia, fracción serial de Karp-Flatt y el ajuste de Amdahl (referencia: 1 núcleo, mismo N) |
+| `scripts/e3_speedup.py` | Agrega a un CSV de E3 el speedup de SVE frente al escalar (mismo N), el speedup ideal (carriles = VL/32), la eficiencia vectorial y la reducción de instrucciones; imprime la tabla |
 | `scripts/e6_cost.py` | Agrega a un CSV el costo `núcleos × (ancho/2 + VL/128)`, el tiempo, los GFLOP/s y los GFLOP/s por unidad de costo; imprime la tabla ordenada |
 
 `src/gemm_omp.c` usa **pthreads** (no OpenMP, que suele fallar en modo SE). Uso: `gemm_omp N T [full]`;
