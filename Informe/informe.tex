@@ -312,13 +312,170 @@ un núcleo de E4, prácticamente las mismas instrucciones) necesita
 IPC, ocupación de IQ y ROB, fallos de predicción. ¿Dónde se satura el
 IPC y por qué?}
 
-% =====================================================================
+
 \section{E3: Extensión Vectorial SVE}
 \label{sec:e3}
 
-\pendiente{Integrante 2. Escalar vs.\ SVE con VL de 128 a 1024 bits;
-instrucciones, ciclos y \textit{speedup}. ¿La ganancia escala con VL?}
+Se comparó \texttt{gemm\_scalar} con \texttt{gemm\_sve}, que implementa
+el mismo orden de bucles $i$-$k$-$j$ con intrínsecos SVE (ACLE). El
+bucle interno procesa un vector completo por iteración: replica
+$A_{ik}$ en todos los carriles, carga una fila de $B$ y una de $C$,
+realiza una multiplicación-suma vectorial y almacena el resultado.
+Un predicado generado con \texttt{svwhilelt} desactiva los carriles que
+exceden $N$, por lo que el código es independiente de la longitud
+vectorial (VLA): se usó el mismo binario para todas las VL, cambiando
+solo el parámetro \texttt{sve\_vl\_se} de gem5. Se simuló un núcleo
+\texttt{ArmO3CPU} con sus parámetros por defecto (el mismo de E1),
+cachés clásicas L1 y L2, $N=64$ y $N=128$, y VL de 128 a 1024 bits.
+Las diez corridas verificaron el resultado contra la referencia escalar.
 
+Como control de reproducibilidad, la corrida escalar con $N=128$ empleó
+\num{18887201} ciclos, frente a \num{18887655} en E1 con el mismo
+núcleo: una diferencia menor que \SI{0,003}{\percent}.
+
+\begin{table}[!t]
+\centering
+\caption{Resultados de E3 medidos en la ROI (O3, un núcleo).}
+\label{tab:e3}
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{|c|r|r|r|c|c|c|}
+\hline
+$N$ & \textbf{VL} & \textbf{Ciclos} & \textbf{Instr.} & \textbf{IPC} &
+\textbf{Speedup} & \textbf{Carriles} \\ \hline
+64  & esc. & \num{2359206}  & \num{1868231}  & $0{,}792$ & $1{,}00$  & 1  \\ \hline
+64  & 128  & \num{304058}   & \num{823753}   & $2{,}709$ & $7{,}76$  & 4  \\ \hline
+64  & 256  & \num{140369}   & \num{430537}   & $3{,}067$ & $16{,}81$ & 8  \\ \hline
+64  & 512  & \num{98419}    & \num{233929}   & $2{,}377$ & $23{,}97$ & 16 \\ \hline
+64  & 1024 & \num{49329}    & \num{135625}   & $2{,}749$ & $47{,}83$ & 32 \\ \hline
+128 & esc. & \num{18887201} & \num{14812039} & $0{,}784$ & $1{,}00$  & 1  \\ \hline
+128 & 128  & \num{2262742}  & \num{6439817}  & $2{,}846$ & $8{,}35$  & 4  \\ \hline
+128 & 256  & \num{1214238}  & \num{3294089}  & $2{,}713$ & $15{,}55$ & 8  \\ \hline
+128 & 512  & \num{823712}   & \num{1721225}  & $2{,}090$ & $22{,}93$ & 16 \\ \hline
+128 & 1024 & \num{435278}   & \num{934793}   & $2{,}148$ & $43{,}39$ & 32 \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[!t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=5.2cm,
+    xmode=log, log basis x=2,
+    ymode=log, log basis y=2,
+    xtick={128,256,512,1024},
+    xticklabels={128,256,512,1024},
+    ytick={4,8,16,32,64},
+    yticklabels={4,8,16,32,64},
+    xlabel={VL (bits)},
+    ylabel={Speedup frente al escalar},
+    grid=major, grid style={gray!20},
+    legend style={font=\scriptsize, at={(0.5,1.02)}, anchor=south,
+                  legend columns=3, draw=none},
+    tick label style={font=\scriptsize},
+    label style={font=\small}
+]
+\addplot+[mark=*,thick] coordinates
+    {(128,7.7591) (256,16.8072) (512,23.9710) (1024,47.8259)};
+\addlegendentry{$N=64$}
+\addplot+[mark=square*,thick] coordinates
+    {(128,8.3470) (256,15.5548) (512,22.9294) (1024,43.3911)};
+\addlegendentry{$N=128$}
+\addplot[dashed,gray,thick] coordinates
+    {(128,4) (256,8) (512,16) (1024,32)};
+\addlegendentry{Carriles (VL/32)}
+\end{axis}
+\end{tikzpicture}
+\caption{Speedup de SVE frente a GEMM escalar en O3. La línea discontinua
+indica el número de carriles de 32 bits por vector.}
+\label{fig:e3_speedup}
+\end{figure}
+
+\subsection{Descomposición del speedup}
+
+La Tabla~\ref{tab:e3} y la Fig.~\ref{fig:e3_speedup} muestran
+aceleraciones de $7{,}8\times$ a $47{,}8\times$, superiores al número
+de carriles en todos los casos. Como el speedup es el cociente de
+ciclos, puede escribirse como el producto de la reducción de
+instrucciones y el aumento del IPC:
+\begin{equation}
+S = \frac{I_{\text{esc}}}{I_{\text{SVE}}}\cdot
+    \frac{\text{IPC}_{\text{SVE}}}{\text{IPC}_{\text{esc}}} .
+\end{equation}
+Para $N=128$ y VL de 128 bits, las instrucciones se reducen
+$2{,}30\times$ y el IPC aumenta $3{,}63\times$ (de $0{,}784$ a
+$2{,}846$), lo que da $8{,}35\times$. Ambos factores se analizan por
+separado.
+
+\textbf{Reducción de instrucciones.} El desensamblado muestra que el
+bucle interno escalar ejecuta 7 instrucciones por elemento (dos cargas,
+\texttt{fmadd}, almacenamiento, incremento, comparación y salto), lo que
+coincide con las $\num{14812039}/128^3 \approx 7{,}06$ instrucciones por
+elemento medidas. El bucle SVE ejecuta 12 instrucciones por vector: las
+cinco operaciones útiles (\texttt{whilelt}, dos \texttt{ld1w},
+\texttt{fmad} y \texttt{st1w}) más el cálculo de direcciones con índices
+enteros de 32 bits extendidos a 64 (\texttt{add ... sxtw}) y el control
+del bucle. Con 4 carriles resultan 3 instrucciones por elemento, de ahí
+la reducción de $2{,}3\times$ y no de $4\times$. Al crecer VL, el bucle
+interno de $N=64$ ejecuta solo $64/32=2$ iteraciones con VL de 1024
+bits, y el trabajo fijo por cada par $(i,k)$ (replicar $A_{ik}$,
+controlar el bucle $k$) pesa más; por eso la reducción con 32 carriles
+es de $13{,}8\times$ para $N=64$ y de $15{,}8\times$ para $N=128$.
+
+\textbf{Aumento del IPC.} En E2 el IPC escalar se mantuvo cerca de
+$0{,}78$ con cualquier ancho y ROB, de modo que la versión escalar no
+está limitada por los recursos del núcleo sino por las dependencias de
+cada iteración. El núcleo escalar emplea unos $9{,}0$ ciclos por
+iteración del bucle interno ($\num{18887201}/128^3$), mientras que el
+bucle SVE emplea $4{,}3$ ciclos por iteración con VL de 128 bits
+($\num{2262742}/(128^3/4)$) y procesa cuatro elementos en cada una. Al
+haber muchas menos instrucciones de memoria y de control por elemento,
+las iteraciones vectoriales se solapan mejor en el núcleo fuera de
+orden, y el IPC sube a valores entre $2{,}1$ y $3{,}1$. Este efecto es
+la causa de que el speedup supere al número de carriles: la línea base
+escalar aprovecha poco el núcleo O3.
+
+\subsection{Escalamiento con la longitud vectorial}
+
+Al pasar de 128 a 1024 bits los carriles se multiplican por 8, pero el
+speedup crece $6{,}2\times$ para $N=64$ y $5{,}2\times$ para $N=128$.
+La eficiencia vectorial (speedup dividido entre carriles) baja de
+$1{,}94$ a $1{,}49$ con $N=64$ y de $2{,}09$ a $1{,}36$ con $N=128$.
+La caída coincide con la del IPC, que pasa de valores cercanos a
+$2{,}7$--$3{,}1$ con 128 y 256 bits a $2{,}1$--$2{,}4$ con 512 bits.
+Con 512 bits, cada acceso vectorial mueve \SI{64}{B}, el tamaño de una
+línea de caché, y con 1024 bits mueve dos líneas; como \texttt{malloc} solo garantiza
+alineación de \SI{16}{B}, una parte de los accesos abarca dos
+líneas, de modo que cada instrucción de memoria cuesta más y el
+cuello de botella se desplaza del cómputo a la memoria. El efecto es
+mayor para $N=128$, cuyas tres matrices ocupan \SI{192}{KiB} y no caben
+en la L1D de \SI{64}{KiB} (con $N=64$ ocupan \SI{48}{KiB} y sí caben,
+como se observó en E1). La duplicación de 256 a 512 bits es la menos
+eficaz en ambos tamaños ($1{,}43\times$ y $1{,}47\times$).
+
+\subsection{Respuesta a la pregunta guía}
+
+La ganancia sí escala con VL, pero de forma sublineal: duplicar la
+longitud vectorial aumenta el speedup entre $1{,}4\times$ y $2{,}2\times$,
+y el rendimiento por carril disminuye al crecer VL, sobre todo cuando
+los datos no caben en la L1D. Dos factores limitan el escalamiento: las
+instrucciones de direccionamiento y control que no se vectorizan, cuyo
+peso relativo crece cuando el bucle interno tiene pocas iteraciones, y
+el ancho de banda de la caché cuando cada acceso abarca una o más
+líneas completas. Aun así, VL de 1024 bits es la configuración más
+rápida en ambos tamaños.
+
+\textbf{Implicación para E6.} Con ancho 2, pasar de 128 a 256 bits
+eleva el costo de un núcleo de 2 a 3 unidades ($\times 1{,}5$), y en
+E3 el speedup creció $1{,}86\times$ para $N=128$; pasar de 512 a 1024
+bits lo eleva de 5 a 9 unidades ($\times 1{,}8$) para una ganancia de
+$1{,}89\times$. En E4, en cambio, cada núcleo adicional aportó un
+speedup casi lineal (eficiencia cercana a 1) con un aumento de costo
+proporcional. Ampliar VL es, por tanto, más rentable que agregar
+núcleos mientras VL es corto, y la ventaja se reduce con VL largo. Como
+E3 usó el núcleo O3 por defecto y no el de ancho 2, esta estimación se
+verifica directamente en E6.
 % =====================================================================
 \section{E4: Multiprocesador de Memoria Compartida}
 \label{sec:e4}

@@ -1,0 +1,25 @@
+warn: The se.py script is deprecated. It will be removed in future releases of  gem5.
+Global frequency set at 1000000000000 ticks per second
+warn: No dot file generated. Please install pydot to generate the dot file and pdf.
+src/mem/dram_interface.cc:691: warn: DRAM device capacity (8192 Mbytes) does not match the address range assigned (512 Mbytes)
+src/base/statistics.hh:279: warn: One of the stats is a legacy stat. Legacy stat is a stat that does not belong to any statistics::Group. Legacy stat is deprecated.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:32] into equal-sized buckets. Rounding up.
+src/base/stats/storage.hh:278: warn: Bucket size (4) does not divide range [1:8] into equal-sized buckets. Rounding up.
+src/base/remote_gdb.cc:418: warn: Sockets disabled, not accepting gdb connections
+gem5 Simulator System.  https://www.gem5.org
+gem5 is copyrighted software; use the --copyright option for details.
+
+gem5 version 26.0.0.0
+gem5 compiled Nov 21 2026 16:35:56
+gem5 started Nov 26 2026 20:05:12
+gem5 executing on victoriacerdaslaptopro, pid 8543
+command line: /home/victoriaslyn/gem5/build/ARM_MESI/gem5.opt -d /home/victoriaslyn/Proyecto2ARQUI/results/e3/sve_vl128_n64 /home/victoriaslyn/gem5/configs/deprecated/example/se.py --cpu-type=ArmO3CPU --caches --l2cache --param 'system.cpu[:].isa[:].sve_vl_se=1' -c /home/victoriaslyn/Proyecto2ARQUI/bin/gem5/gemm_sve -o 64
+
+info: Standard input is not a terminal, disabling listeners.
+**** REAL SIMULATION ****
+src/sim/syscall_emul.cc:86: warn: ignoring syscall set_robust_list(...)
+src/sim/mem_state.cc:443: info: Increasing stack size by one page.
+src/arch/arm/insts/pseudo.cc:174: warn: 	instruction 'bti' unimplemented
+src/sim/syscall_emul.cc:86: warn: ignoring syscall mprotect(...)
+gemm_sve N=64  VL=128 bits  checksum=5.0  OK
+Exiting @ tick 803354500 because exiting with last active thread context

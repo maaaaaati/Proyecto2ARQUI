@@ -1,0 +1,1 @@
+/home/victoriaslyn/gem5/build/ARM_MESI/gem5.opt -d /home/victoriaslyn/Proyecto2ARQUI/results/e3/sve_vl512_n64 /home/victoriaslyn/gem5/configs/deprecated/example/se.py --cpu-type=ArmO3CPU --caches --l2cache --param system.cpu[:].isa[:].sve_vl_se=4 -c /home/victoriaslyn/Proyecto2ARQUI/bin/gem5/gemm_sve -o 64

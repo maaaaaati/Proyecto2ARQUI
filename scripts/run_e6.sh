@@ -30,7 +30,7 @@ CONFIGS="${CONFIGS:-8:2:128 16:2:128}"
 N="${N:-128}"
 CPU="${CPU:-ArmO3CPU}"
 BIN="$REPO/bin/gem5/gemm_omp_sve"
-OUT="$REPO/results/e6"
+OUT="${OUT:-$REPO/results/e6}"
 
 [ -x "$BIN" ] || { echo "Falta $BIN. Compílalo con: make"; exit 1; }
 
